@@ -1,5 +1,6 @@
 use base64::Engine as _;
-use jsonwebkey::{KeyUse, RsaPrivate};
+use jsonwebkey::KeyUse;
+use jsonwebkey::RsaPrivate;
 use serde::Deserialize;
 use serde::Serialize;
 use web_sys::js_sys;
@@ -18,7 +19,8 @@ pub(crate) struct Jwks {
     pub private: jsonwebkey::JsonWebKey,
 }
 
-const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::URL_SAFE_NO_PAD;
+const BASE64_ENGINE: base64::engine::GeneralPurpose =
+    base64::engine::general_purpose::URL_SAFE_NO_PAD;
 
 impl Jwks {
     pub(crate) async fn new() -> Self {

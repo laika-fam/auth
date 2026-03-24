@@ -10,12 +10,11 @@ use crate::endpoints::authorize;
 use crate::endpoints::jwks;
 use crate::endpoints::openid_config;
 use crate::keys::Jwks;
-use axum::routing::get;
 use axum::Router;
+use axum::routing::get;
 use core::ops::Deref;
 use std::sync::Arc;
 use tower_service::Service as _;
-use worker::wasm_bindgen::JsValue;
 use worker::wasm_bindgen::UnwrapThrowExt as _;
 
 #[derive(Clone)]
