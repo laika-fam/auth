@@ -1,0 +1,12 @@
+# rs
+/target
+
+# env
+.env*
+!.env.example
+
+# IDEs
+.idea/
+
+# misc
+.DS_Store
