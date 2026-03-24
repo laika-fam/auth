@@ -2,7 +2,7 @@ use crate::AppState;
 use axum::extract::State;
 use axum::http::HeaderName;
 use axum::http::HeaderValue;
-use axum::response::IntoResponse;
+use axum::response::IntoResponse as _;
 
 #[worker::send]
 #[axum_macros::debug_handler]

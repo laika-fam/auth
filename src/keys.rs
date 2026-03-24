@@ -1,15 +1,14 @@
-use base64::Engine;
+use base64::Engine as _;
 use jsonwebkey::RsaPrivate;
 use serde::Deserialize;
 use serde::Serialize;
-use std::str::FromStr;
 use web_sys::js_sys;
 use web_sys::js_sys::Array;
 use web_sys::js_sys::Reflect;
 use web_sys::js_sys::Uint8Array;
-use web_sys::wasm_bindgen::JsCast;
+use web_sys::wasm_bindgen::JsCast as _;
 use web_sys::wasm_bindgen::JsValue;
-use web_sys::wasm_bindgen::UnwrapThrowExt;
+use web_sys::wasm_bindgen::UnwrapThrowExt as _;
 use worker::wasm_bindgen_futures::JsFuture;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -41,7 +40,7 @@ impl Jwks {
                                 "publicExponent",
                                 Uint8Array::new_from_slice(&[0x01, 0x00, 0x01]).into(),
                             ),
-                            ("modulusLength", JsValue::from_f64(4096.0).into()),
+                            ("modulusLength", JsValue::from_f64(4096.0)),
                         ] {
                             Reflect::set(&obj, &JsValue::from_str(k), &v).unwrap_throw();
                         }
@@ -131,12 +130,12 @@ impl Jwks {
             jsonwebkey::JsonWebKey::new(rsa.clone().to_public().unwrap_throw().into_owned());
         public_jwk
             .set_algorithm(jsonwebkey::Algorithm::RS256)
-            .expect("RS256 is correct for an RSA key");
+            .expect_throw("RS256 is correct for an RSA key");
         public_jwk.key_id = Some(key_id.to_string());
         let mut private_jwk = jsonwebkey::JsonWebKey::new(rsa);
         private_jwk
             .set_algorithm(jsonwebkey::Algorithm::RS256)
-            .expect("RS256 is correct for an RSA key");
+            .expect_throw("RS256 is correct for an RSA key");
         private_jwk.key_id = Some(key_id.to_string());
 
         Self {

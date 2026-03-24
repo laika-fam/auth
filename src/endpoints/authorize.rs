@@ -1,13 +1,13 @@
 use crate::AppState;
-use crate::error::WithStatusCode;
-use anyhow::Context;
+use crate::error::WithStatusCode as _;
+use anyhow::Context as _;
 use anyhow::anyhow;
 use axum::extract::Query;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::Response;
 use serde::Deserialize;
-use worker::wasm_bindgen::UnwrapThrowExt;
+use worker::wasm_bindgen::UnwrapThrowExt as _;
 
 struct ClientDef {}
 
@@ -15,7 +15,7 @@ static CLIENTS: phf::Map<&'static str, ClientDef> = phf::phf_map! {
     "test" => ClientDef {},
 };
 
-fn allowed(client_id: &str, redirect_url: &str) -> bool {
+fn allowed(client_id: &str, _redirect_url: &str) -> bool {
     // TODO: check redirect
     CLIENTS.contains_key(client_id)
 }
@@ -39,7 +39,7 @@ pub(crate) struct AuthorizeQuery {
     prompt: Option<PromptType>,
 }
 
-const EXTREMELY_LOUD_INCORRECT_BUZZER: &str = "[𝐄𝐗𝐓𝐑𝐄𝐌𝐄𝐋𝐘 𝐋𝐎𝐔𝐃 𝐈𝐍𝐂𝐎𝐑𝐑𝐄𝐂𝐓 𝐁𝐔𝐙𝐙𝐄𝐑]";
+const EXTREMELY_LOUD_INCORRECT_BUZZER: &str = "[\u{1d404}\u{1d417}\u{1d413}\u{1d411}\u{1d404}\u{1d40c}\u{1d404}\u{1d40b}\u{1d418} \u{1d40b}\u{1d40e}\u{1d414}\u{1d403} \u{1d408}\u{1d40d}\u{1d402}\u{1d40e}\u{1d411}\u{1d411}\u{1d404}\u{1d402}\u{1d413} \u{1d401}\u{1d414}\u{1d419}\u{1d419}\u{1d404}\u{1d411}]";
 
 pub fn found_redirect(location: &str) -> Response {
     Response::builder()
@@ -73,7 +73,7 @@ pub(crate) async fn get(
     if let Some(sid) = sid
         && state
             .sessions
-            .get(&sid.value())
+            .get(sid.value())
             .bytes()
             .await
             .unwrap_throw()

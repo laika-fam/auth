@@ -12,13 +12,10 @@ use crate::endpoints::openid_config;
 use crate::keys::Jwks;
 use axum::routing::get;
 use axum::Router;
-use std::ops::Deref;
-use std::str::FromStr;
+use core::ops::Deref;
 use std::sync::Arc;
-use tower_service::Service;
-use web_sys::wasm_bindgen::convert::Upcast;
-use worker::wasm_bindgen::JsCast;
-use worker::wasm_bindgen::UnwrapThrowExt;
+use tower_service::Service as _;
+use worker::wasm_bindgen::UnwrapThrowExt as _;
 
 #[derive(Clone)]
 struct AppState(pub(crate) Arc<AppStateInner>);

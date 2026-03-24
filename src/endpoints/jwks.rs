@@ -4,8 +4,8 @@ use axum::extract::State;
 use axum::http::HeaderName;
 use axum::http::HeaderValue;
 use axum::http::Response;
-use axum::response::IntoResponse;
-use web_sys::wasm_bindgen::UnwrapThrowExt;
+use axum::response::IntoResponse as _;
+use web_sys::wasm_bindgen::UnwrapThrowExt as _;
 
 #[worker::send]
 #[axum_macros::debug_handler]
