@@ -6,6 +6,9 @@ mod keys;
 
 pub(crate) use error::Result;
 
+use crate::endpoints::authorize;
+use crate::endpoints::jwks;
+use crate::endpoints::openid_config;
 use crate::keys::Jwks;
 use axum::routing::get;
 use axum::Router;
@@ -16,7 +19,6 @@ use tower_service::Service;
 use web_sys::wasm_bindgen::convert::Upcast;
 use worker::wasm_bindgen::JsCast;
 use worker::wasm_bindgen::UnwrapThrowExt;
-use crate::endpoints::{authorize, jwks, openid_config};
 
 #[derive(Clone)]
 struct AppState(pub(crate) Arc<AppStateInner>);
@@ -47,15 +49,16 @@ impl AppState {
     }
 
     async fn keys(&self) -> Jwks {
-        match self
+        if let Some(jwks) = self
             .keys
             .get("driving in my car")
             .json::<Jwks>()
             .await
             .unwrap_throw()
         {
-            Some(jwks) => jwks,
-            None => {
+            jwks
+        } else {
+            {
                 let jwks = Jwks::new().await;
                 self.keys
                     .put("driving in my car", &jwks)
