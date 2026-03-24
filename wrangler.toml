@@ -3,7 +3,7 @@ main = "build/index.js"
 compatibility_date = "2026-03-24"
 
 [build]
-command = "cargo install --locked \"worker-build@^0.7\" && worker-build --profile wasm"
+command = "cargo install --locked \"worker-build@^0.7\" && worker-build --profile wasm-release"
 
 [vars]
 ISSUER = "https://auth.laggy.computer"
