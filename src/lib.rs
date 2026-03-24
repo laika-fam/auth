@@ -1,9 +1,8 @@
 //! who up authorizing they accounts
 
-mod authorize;
+mod endpoints;
 mod error;
 mod keys;
-mod openid_config;
 
 pub(crate) use error::Result;
 
@@ -17,6 +16,7 @@ use tower_service::Service;
 use web_sys::wasm_bindgen::convert::Upcast;
 use worker::wasm_bindgen::JsCast;
 use worker::wasm_bindgen::UnwrapThrowExt;
+use crate::endpoints::{authorize, jwks, openid_config};
 
 #[derive(Clone)]
 struct AppState(pub(crate) Arc<AppStateInner>);
@@ -91,6 +91,7 @@ fn router(env: worker::Env) -> Router {
         .route("/robots.txt", get(robots))
         .route("/ping", get(ping))
         .route("/.well-known/openid-configuration", get(openid_config::get))
+        .route("/jwks.json", get(jwks::get))
         .route("/authorize", get(authorize::get))
         .with_state(app_state)
 }
