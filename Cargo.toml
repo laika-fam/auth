@@ -1,27 +1,40 @@
-[workspace]
-members = [".", "db"]
-resolver = "3"
-default-members = ["."]
-
-[workspace.package]
+[package]
+name = "auth"
+description = "homegrown auth primitive"
+version = "0.1.0"
 edition = "2024"
 rust-version = "1.94"
+publish = false
 
-[workspace.dependencies]
-chrono = "^0.4"
-diesel = { version = "^2.3", features = ["postgres", "serde_json"] }
-diesel-async = { version = "^0.8", features = ["postgres"] }
-serde = "^1"
-strum = { version = "^0.28", features = ["strum_macros"] }
-uuid = "^1.22"
+[lib]
+crate-type = ["cdylib"]
 
-[profile.release_extra]
+[dependencies]
+anyhow = "^1"
+axum = { version = "^0.8", default-features = false, features = ["json", "query"] }
+axum-macros = "^0.5"
+base64 = "0.22.1"
+jsonwebkey = { version = "^0.4" }
+phf = { version = "0.13.1", features = ["macros"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "^1"
+tower-cookies = "^0.11"
+tower-service = "^0.3"
+uuid = { version = "^1.22", features = ["js", "serde", "v4"] }
+url = { version = "^2.5", features = ["serde"] }
+web-sys = { version = "^0.3", features = ["Crypto", "CryptoKey", "CryptoKeyPair", "SubtleCrypto"] }
+worker = { version = "0.7", features = ["axum", "http"] }
+worker-macros = { version = "0.7", features = ["http"] }
+
+[profile.wasm]
 inherits = "release"
 lto = "fat"
 codegen-units = 1
-debug = "full"
+debug = "none"
+panic = "abort"
+opt-level = "z"
 
-[workspace.lints.rust]
+[lints.rust]
 ambiguous_negative_literals = "warn"
 # enable when the ecosystem supports these better and targetting a supporting rust version
 # closure_returning_async_block = "warn"
@@ -57,7 +70,7 @@ unused_macro_rules = "warn"
 unused_unsafe = "deny"
 variant_size_differences = "warn"
 
-[workspace.lints.clippy]
+[lints.clippy]
 alloc_instead_of_core = "warn"
 allow_attributes = "warn"
 assigning_clones = "warn"
@@ -190,30 +203,3 @@ verbose_bit_mask = "warn"
 verbose_file_reads = "warn"
 wildcard_dependencies = "deny"
 zero_sized_map_values = "deny"
-
-[package]
-name = "auth"
-description = "homegrown auth primitive"
-version = "0.1.0"
-edition = "2024"
-rust-version = "1.94"
-publish = false
-
-[dependencies]
-anyhow = "^1"
-actix-web = "^4.13"
-db = { path = "./db" }
-# constrained by diesel-async
-deadpool = "0.13.0"
-diesel = { workspace = true }
-diesel-async = { workspace = true, features = ["deadpool"] }
-dotenvy = "^0.15"
-jsonwebkey = { version = "^0.4", features = ["generate"] }
-openssl = "^0.10"
-phf = { version = "0.13.1", features = ["macros"] }
-reqwest = "0.13.2"
-serde_json = "^1"
-tokio = { version = "^1", features = ["macros", "rt-multi-thread"] }
-uuid = { workspace = true, features = ["serde", "v4"] }
-serde = { version = "1.0.228", features = ["derive"] }
-url = "^2.5"
