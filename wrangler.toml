@@ -11,3 +11,7 @@ ISSUER = "https://auth.laggy.computer"
 [[kv_namespaces]]
 binding = "AUTH_SESSIONS"
 id = "6c17844d11854154987d7220db10f3a7"
+
+[[kv_namespaces]]
+binding = "AUTH_KEYS"
+id = "9662f50f89bb4c8c8b0619abe797b7ef"

@@ -15,6 +15,7 @@ use axum::Router;
 use core::ops::Deref;
 use std::sync::Arc;
 use tower_service::Service as _;
+use worker::wasm_bindgen::JsValue;
 use worker::wasm_bindgen::UnwrapThrowExt as _;
 
 #[derive(Clone)]
@@ -49,16 +50,21 @@ impl AppState {
         if let Some(jwks) = self
             .keys
             .get("driving in my car")
-            .json::<Jwks>()
+            .json::<serde_json::Value>()
             .await
             .unwrap_throw()
+            .map(|v| serde_json::from_value(v).unwrap_throw())
         {
             jwks
         } else {
             {
                 let jwks = Jwks::new().await;
                 self.keys
-                    .put("driving in my car", &jwks)
+                    .put(
+                        "driving in my car",
+                        // worker serialization glue doesn't work :(
+                        serde_json::to_value(&jwks).unwrap_throw().to_string(),
+                    )
                     .unwrap_throw()
                     .execute()
                     .await
