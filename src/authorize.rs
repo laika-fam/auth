@@ -105,7 +105,6 @@ pub async fn authorize(
                 "state": query.state,
                 "code_challenge": query.code_challenge,
                 "scope": query.scope,
-
             }))
             .context("create oauth state string to goog")?,
         );
