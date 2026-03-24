@@ -2,6 +2,8 @@
 
 mod authorize;
 mod keygen;
+mod session;
+mod util;
 
 use crate::keygen::Jwks;
 use actix_web::App;
@@ -27,6 +29,7 @@ use diesel::QueryDsl;
 use diesel_async::AsyncPgConnection;
 use diesel_async::RunQueryDsl;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
+use std::collections::HashMap;
 use std::fmt::Formatter;
 
 const EXTREMELY_LOUD_INCORRECT_BUZZER: &str = "[𝐄𝐗𝐓𝐑𝐄𝐌𝐄𝐋𝐘 𝐋𝐎𝐔𝐃 𝐈𝐍𝐂𝐎𝐑𝐑𝐄𝐂𝐓 𝐁𝐔𝐙𝐙𝐄𝐑]";
@@ -89,6 +92,8 @@ struct AppData {
     jwks: Jwks,
     http: reqwest::Client,
     issuer: Box<str>,
+    sessions: HashMap<uuid::Uuid, session::Session>,
+    google_client_id: Box<str>,
 }
 
 type DatabaseConnection =
@@ -202,6 +207,10 @@ async fn main() -> anyhow::Result<()> {
         http: reqwest::Client::new(),
         issuer: std::env::var("ISSUER")
             .context("need $ISSUER")?
+            .into_boxed_str(),
+        sessions: Default::default(),
+        google_client_id: std::env::var("GOOGLE_CLIENT_ID")
+            .expect("need $GOOGLE_CLIENT_ID")
             .into_boxed_str(),
     });
 
