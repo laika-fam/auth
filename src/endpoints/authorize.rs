@@ -14,7 +14,6 @@ use axum::response::Response;
 use base64::Engine as _;
 use serde::Deserialize;
 use std::collections::HashSet;
-use std::mem::MaybeUninit;
 use worker::wasm_bindgen::UnwrapThrowExt as _;
 
 struct ClientDef {}
@@ -92,15 +91,12 @@ pub(crate) async fn get(
         }
     {
         let auth_code = uuid::Uuid::new_v4();
-        let mut uuid_buf = [MaybeUninit::uninit(); uuid::fmt::Simple::LENGTH];
+        let mut uuid_buf = [0; uuid::fmt::Simple::LENGTH];
 
         state
             .auth_codes
             .put(
-                auth_code
-                    .simple()
-                    // safety: we will not read ;)
-                    .encode_lower(unsafe { uuid_buf.assume_init_mut() }),
+                auth_code.simple().encode_lower(&mut uuid_buf),
                 AuthCode {
                     session: Session {
                         scope: query.scope,
@@ -120,10 +116,8 @@ pub(crate) async fn get(
         let mut ret = query.redirect_uri;
         {
             let mut query_pairs = ret.query_pairs_mut();
-            // safety: already initialized
-            query_pairs.append_pair("code", unsafe {
-                str::from_utf8_unchecked(uuid_buf.assume_init_ref())
-            });
+            // safety: uuid crate wrote ASCII
+            query_pairs.append_pair("code", unsafe { str::from_utf8_unchecked(&uuid_buf) });
             if let Some(ref state) = query.state {
                 query_pairs.append_pair("state", state);
             }
