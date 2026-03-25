@@ -66,6 +66,7 @@ impl axum::response::IntoResponse for AnyhowBridge {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct Jwks {
+    #[serde(with = "uuid::serde::compact")]
     pub key_id: uuid::Uuid,
     pub public: jsonwebkey::JsonWebKey,
     pub private: jsonwebkey::JsonWebKey,

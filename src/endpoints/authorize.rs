@@ -1,12 +1,12 @@
-use crate::AppState;
-use crate::BINCODE_CONFIG;
 use crate::model::AuthCode;
-use crate::model::BASE64_ENGINE;
 use crate::model::PassedAuthState;
 use crate::model::Session;
 use crate::model::WithStatusCode as _;
-use anyhow::Context as _;
+use crate::model::BASE64_ENGINE;
+use crate::AppState;
+use crate::BINCODE_CONFIG;
 use anyhow::anyhow;
+use anyhow::Context as _;
 use axum::extract::Query;
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -14,6 +14,7 @@ use axum::response::Response;
 use base64::Engine as _;
 use serde::Deserialize;
 use std::collections::HashSet;
+use std::mem::MaybeUninit;
 use worker::wasm_bindgen::UnwrapThrowExt as _;
 
 struct ClientDef {}
@@ -91,11 +92,15 @@ pub(crate) async fn get(
         }
     {
         let auth_code = uuid::Uuid::new_v4();
+        let mut uuid_buf = [MaybeUninit::uninit(); uuid::fmt::Simple::LENGTH];
+
         state
             .auth_codes
             .put(
-                // TODO: no alloc here
-                &auth_code.to_string(),
+                auth_code
+                    .simple()
+                    // safety: we will not read ;)
+                    .encode_lower(unsafe { uuid_buf.assume_init_mut() }),
                 AuthCode {
                     session: Session {
                         scope: query.scope,
@@ -115,8 +120,10 @@ pub(crate) async fn get(
         let mut ret = query.redirect_uri;
         {
             let mut query_pairs = ret.query_pairs_mut();
-            // TODO: no alloc here
-            query_pairs.append_pair("code", &auth_code.to_string());
+            // safety: already initialized
+            query_pairs.append_pair("code", unsafe {
+                str::from_utf8_unchecked(uuid_buf.assume_init_ref())
+            });
             if let Some(ref state) = query.state {
                 query_pairs.append_pair("state", state);
             }
