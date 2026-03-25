@@ -1,12 +1,19 @@
+use crate::model::AuthCode;
+use crate::model::PassedAuthState;
+use crate::model::Session;
+use crate::model::WithStatusCode;
+use crate::model::BASE64_ENGINE;
 use crate::AppState;
-use crate::error::WithStatusCode as _;
-use anyhow::Context as _;
+use crate::BINCODE_CONFIG;
 use anyhow::anyhow;
+use anyhow::Context as _;
 use axum::extract::Query;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::Response;
+use base64::Engine;
 use serde::Deserialize;
+use std::collections::HashSet;
 use worker::wasm_bindgen::UnwrapThrowExt as _;
 
 struct ClientDef {}
@@ -69,29 +76,66 @@ pub(crate) async fn get(
         return Err(anyhow!("GET OUT")).with_status_code(StatusCode::BAD_REQUEST);
     }
 
-    let sid = cookies.get("sid");
-    if let Some(sid) = sid
-        && state
+    let sess = cookies.get("sess");
+    if let Some(sess) = sess
+        && let Some(sess_state) = state
             .sessions
-            .get(sid.value())
-            .bytes()
+            .get(sess.value())
+            .json::<Session>()
             .await
             .unwrap_throw()
-            .is_some()
+        && query.prompt != Some(PromptType::Consent)
+        && {
+            let session_scopes = sess_state.scope.split(' ').collect::<HashSet<&str>>();
+            query.scope.split(' ').all(|s| session_scopes.contains(s))
+        }
     {
-        todo!("can't handle existing sessions yet :(")
-        // scope check
+        let auth_code = uuid::Uuid::new_v4();
+        state
+            .auth_codes
+            .put(
+                // TODO: no alloc here
+                &*auth_code.to_string(),
+                AuthCode {
+                    session: Session {
+                        scope: query.scope,
+                        ..sess_state
+                    },
+                    client_id: query.client_id,
+                    redirect_uri: query.redirect_uri.clone(),
+                    code_challenge: query.code_challenge,
+                },
+            )
+            .unwrap_throw()
+            .expiration_ttl(state.auth_code_ttl)
+            .execute()
+            .await
+            .unwrap_throw();
+
+        let mut ret = query.redirect_uri;
+        {
+            let mut query_pairs = ret.query_pairs_mut();
+            // TODO: no alloc here
+            query_pairs.append_pair("code", &auth_code.to_string());
+            if let Some(ref state) = query.state {
+                query_pairs.append_pair("state", state);
+            }
+        }
+
+        return Ok(found_redirect(ret.as_str()));
     }
 
     if query.prompt == Some(PromptType::None) {
+        let mut ret = query.redirect_uri;
         {
-            let mut query_pairs = query.redirect_uri.query_pairs_mut();
+            let mut query_pairs = ret.query_pairs_mut();
             query_pairs.append_pair("error", "login_required");
             if let Some(ref state) = query.state {
                 query_pairs.append_pair("state", state);
             }
         }
-        return Ok(found_redirect(query.redirect_uri.as_str()));
+
+        return Ok(found_redirect(ret.as_str()));
     }
 
     let mut url = url::Url::parse("https://accounts.google.com/o/oauth2/v2/auth")
@@ -106,14 +150,19 @@ pub(crate) async fn get(
         query_pairs.append_pair("prompt", "consent");
         query_pairs.append_pair(
             "state",
-            &serde_json::to_string(&serde_json::json!({
-                "client_id": state.google_client_id,
-                "redirect_uri": query.redirect_uri,
-                "state": query.state,
-                "code_challenge": query.code_challenge,
-                "scope": query.scope,
-            }))
-            .context("create oauth state string to goog")?,
+            &BASE64_ENGINE.encode(
+                bincode_next::encode_to_vec(
+                    PassedAuthState {
+                        client_id: query.client_id,
+                        redirect_uri: query.redirect_uri.into(),
+                        state: query.state,
+                        code_challenge: query.code_challenge,
+                        scope: query.scope,
+                    },
+                    BINCODE_CONFIG,
+                )
+                .unwrap_throw(),
+            ),
         );
     }
 

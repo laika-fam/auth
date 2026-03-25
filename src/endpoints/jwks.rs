@@ -1,5 +1,5 @@
 use crate::AppState;
-use crate::keys::Jwks;
+use crate::model::Jwks;
 use axum::extract::State;
 use axum::http::HeaderName;
 use axum::http::HeaderValue;

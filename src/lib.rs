@@ -1,21 +1,27 @@
 //! who up authorizing they accounts
 
 mod endpoints;
-mod error;
-mod keys;
+mod model;
 
-pub(crate) use error::Result;
+pub(crate) use model::Result;
 
 use crate::endpoints::authorize;
 use crate::endpoints::jwks;
 use crate::endpoints::openid_config;
-use crate::keys::Jwks;
-use axum::Router;
+use crate::model::Jwks;
 use axum::routing::get;
+use axum::Router;
 use core::ops::Deref;
 use std::sync::Arc;
 use tower_service::Service as _;
 use worker::wasm_bindgen::UnwrapThrowExt as _;
+
+pub(crate) const BINCODE_CONFIG: bincode_next::config::Configuration<
+    bincode_next::config::LittleEndian,
+    bincode_next::config::Fixint,
+> = bincode_next::config::standard()
+    .with_little_endian()
+    .with_fixed_int_encoding();
 
 #[derive(Clone)]
 struct AppState(pub(crate) Arc<AppStateInner>);
@@ -25,6 +31,8 @@ struct AppStateInner {
     pub(crate) google_client_id: Box<str>,
     pub(crate) sessions: worker::KvStore,
     pub(crate) keys: worker::KvStore,
+    pub(crate) auth_codes: worker::KvStore,
+    pub(crate) auth_code_ttl: u64,
 }
 
 impl AppState {
@@ -42,6 +50,13 @@ impl AppState {
                 .into_boxed_str(),
             sessions: env.kv("AUTH_SESSIONS").unwrap_throw(),
             keys: env.kv("AUTH_KEYS").unwrap_throw(),
+            auth_codes: env.kv("AUTH_AUTH_CODES").unwrap_throw(),
+            auth_code_ttl: env
+                .var("AUTH_CODE_TTL")
+                .unwrap_throw()
+                .to_string()
+                .parse()
+                .unwrap_throw(),
         }))
     }
 
