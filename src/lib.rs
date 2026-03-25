@@ -27,12 +27,12 @@ pub(crate) const BINCODE_CONFIG: bincode_next::config::Configuration<
 struct AppState(pub(crate) Arc<AppStateInner>);
 
 struct AppStateInner {
-    pub(crate) issuer: Box<str>,
-    pub(crate) google_client_id: Box<str>,
-    pub(crate) sessions: worker::KvStore,
-    pub(crate) keys: worker::KvStore,
-    pub(crate) auth_codes: worker::KvStore,
-    pub(crate) auth_code_ttl: u64,
+    pub issuer: Box<str>,
+    pub google_client_id: Box<str>,
+    pub sessions: worker::KvStore,
+    pub keys: worker::KvStore,
+    pub auth_codes: worker::KvStore,
+    pub auth_code_ttl: u64,
 }
 
 impl AppState {

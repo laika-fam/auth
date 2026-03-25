@@ -248,34 +248,34 @@ impl Encode for BincodableUrl {
 
 #[derive(Debug, Decode, Encode)]
 pub(crate) struct PassedAuthState {
-    pub(crate) client_id: String,
-    pub(crate) redirect_uri: BincodableUrl,
-    pub(crate) state: Option<String>,
-    pub(crate) code_challenge: String,
-    pub(crate) scope: String,
+    pub client_id: String,
+    pub redirect_uri: BincodableUrl,
+    pub state: Option<String>,
+    pub code_challenge: String,
+    pub scope: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub(crate) struct Session {
-    pub(crate) user_id: String,
-    pub(crate) email: String,
-    pub(crate) name: String,
+    pub user_id: String,
+    pub email: String,
+    pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) picture: Option<String>,
-    pub(crate) scope: String,
+    pub picture: Option<String>,
+    pub scope: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) google_access_token: Option<String>,
+    pub google_access_token: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) google_refresh_token: Option<String>,
+    pub google_refresh_token: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(with = "chrono::serde::ts_milliseconds_option")]
-    pub(crate) google_token_expiry: Option<chrono::DateTime<Utc>>,
+    pub google_token_expiry: Option<chrono::DateTime<Utc>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub(crate) struct AuthCode {
-    pub(crate) session: Session,
-    pub(crate) client_id: String,
-    pub(crate) redirect_uri: url::Url,
-    pub(crate) code_challenge: String,
+    pub session: Session,
+    pub client_id: String,
+    pub redirect_uri: url::Url,
+    pub code_challenge: String,
 }
