@@ -4,14 +4,14 @@ use crate::model::AuthCode;
 use crate::model::BASE64_ENGINE;
 use crate::model::PassedAuthState;
 use crate::model::Session;
-use crate::model::WithStatusCode;
+use crate::model::WithStatusCode as _;
 use anyhow::Context as _;
 use anyhow::anyhow;
 use axum::extract::Query;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::Response;
-use base64::Engine;
+use base64::Engine as _;
 use serde::Deserialize;
 use std::collections::HashSet;
 use worker::wasm_bindgen::UnwrapThrowExt as _;
@@ -65,7 +65,7 @@ pub fn found_redirect(location: &str) -> Response {
 pub(crate) async fn get(
     State(state): State<AppState>,
     cookies: tower_cookies::Cookies,
-    Query(mut query): Query<AuthorizeQuery>,
+    Query(query): Query<AuthorizeQuery>,
 ) -> crate::Result<Response<axum::body::Body>> {
     if !(query.response_type == "code" && query.code_challenge_method == "S256") {
         return Err(anyhow!(EXTREMELY_LOUD_INCORRECT_BUZZER))
@@ -95,7 +95,7 @@ pub(crate) async fn get(
             .auth_codes
             .put(
                 // TODO: no alloc here
-                &*auth_code.to_string(),
+                &auth_code.to_string(),
                 AuthCode {
                     session: Session {
                         scope: query.scope,

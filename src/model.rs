@@ -212,7 +212,7 @@ impl From<url::Url> for BincodableUrl {
 }
 
 impl<Context> Decode<Context> for BincodableUrl {
-    fn decode<D>(decoder: &mut D) -> std::result::Result<Self, DecodeError>
+    fn decode<D>(decoder: &mut D) -> core::result::Result<Self, DecodeError>
     where
         D: Decoder<Context = Context>,
     {
@@ -226,7 +226,7 @@ impl<Context> Decode<Context> for BincodableUrl {
 }
 
 impl<'de, Context> BorrowDecode<'de, Context> for BincodableUrl {
-    fn borrow_decode<D>(decoder: &mut D) -> std::result::Result<Self, DecodeError>
+    fn borrow_decode<D>(decoder: &mut D) -> core::result::Result<Self, DecodeError>
     where
         D: BorrowDecoder<'de, Context = Context>,
     {
@@ -240,7 +240,7 @@ impl<'de, Context> BorrowDecode<'de, Context> for BincodableUrl {
 }
 
 impl Encode for BincodableUrl {
-    fn encode<E: Encoder>(&self, encoder: &mut E) -> std::result::Result<(), EncodeError> {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> core::result::Result<(), EncodeError> {
         self.0.to_string().encode(encoder)
     }
 }
