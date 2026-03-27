@@ -1,18 +1,11 @@
 use axum::http::StatusCode;
-use bincode_next::BorrowDecode;
-use bincode_next::Decode;
-use bincode_next::Encode;
-use bincode_next::de::BorrowDecoder;
-use bincode_next::de::Decoder;
-use bincode_next::enc::Encoder;
-use bincode_next::error::DecodeError;
-use bincode_next::error::EncodeError;
 use chrono::Utc;
 use jsonwebkey::KeyUse;
 use jsonwebkey::RsaPrivate;
 use rand::SeedableRng;
 use rsa::traits::PrivateKeyParts;
 use rsa::traits::PublicKeyParts;
+use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -40,9 +33,12 @@ pub(crate) trait WithStatusCode<T> {
     fn with_status_code(self, code: StatusCode) -> Result<T>;
 }
 
-impl<T> WithStatusCode<T> for anyhow::Result<T> {
+impl<T, E> WithStatusCode<T> for core::result::Result<T, E>
+where
+    E: Into<anyhow::Error>,
+{
     fn with_status_code(self, code: StatusCode) -> Result<T> {
-        self.map_err(|err| AnyhowBridge(Box::new((err, code))))
+        self.map_err(|err| AnyhowBridge(Box::new((err.into(), code))))
     }
 }
 
@@ -60,7 +56,6 @@ impl axum::response::IntoResponse for AnyhowBridge {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct Jwks {
-    #[serde(with = "uuid::serde::compact")]
     pub key_id: uuid::Uuid,
     pub public: jsonwebkey::JsonWebKey,
     pub private: jsonwebkey::JsonWebKey,
@@ -134,56 +129,21 @@ impl Jwks {
     }
 }
 
-#[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub(crate) struct BincodableUrl(pub url::Url);
-
-impl From<url::Url> for BincodableUrl {
-    fn from(url: url::Url) -> Self {
-        Self(url)
-    }
-}
-
-impl<Context> Decode<Context> for BincodableUrl {
-    fn decode<D>(decoder: &mut D) -> core::result::Result<Self, DecodeError>
-    where
-        D: Decoder<Context = Context>,
-    {
-        Ok(Self(
-            String::decode(decoder)?
-                .parse()
-                .ok()
-                .ok_or(DecodeError::Other("invalid url"))?,
-        ))
-    }
-}
-
-impl<'de, Context> BorrowDecode<'de, Context> for BincodableUrl {
-    fn borrow_decode<D>(decoder: &mut D) -> core::result::Result<Self, DecodeError>
-    where
-        D: BorrowDecoder<'de, Context = Context>,
-    {
-        Ok(Self(
-            String::borrow_decode(decoder)?
-                .parse()
-                .ok()
-                .ok_or(DecodeError::Other("invalid url"))?,
-        ))
-    }
-}
-
-impl Encode for BincodableUrl {
-    fn encode<E: Encoder>(&self, encoder: &mut E) -> core::result::Result<(), EncodeError> {
-        self.0.to_string().encode(encoder)
-    }
-}
-
-#[derive(Debug, Decode, Encode)]
-pub(crate) struct PassedAuthState {
+#[derive(Debug, Clone)]
+pub(crate) struct BackingOauthState {
     pub client_id: String,
-    pub redirect_uri: BincodableUrl,
+    pub redirect_uri: url::Url,
     pub state: Option<String>,
     pub code_challenge: String,
     pub scope: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub(crate) struct AuthCode {
+    pub session: Session,
+    pub client_id: String,
+    pub redirect_uri: url::Url,
+    pub code_challenge: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -201,12 +161,4 @@ pub(crate) struct Session {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(with = "chrono::serde::ts_milliseconds_option")]
     pub google_token_expiry: Option<chrono::DateTime<Utc>>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub(crate) struct AuthCode {
-    pub session: Session,
-    pub client_id: String,
-    pub redirect_uri: url::Url,
-    pub code_challenge: String,
 }

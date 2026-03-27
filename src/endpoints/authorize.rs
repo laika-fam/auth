@@ -1,19 +1,16 @@
-use crate::AppState;
-use crate::BINCODE_CONFIG;
-use crate::EXTREMELY_LOUD_INCORRECT_BUZZER;
 use crate::endpoints::callback::goog;
 use crate::model::AuthCode;
-use crate::model::BASE64_ENGINE;
-use crate::model::PassedAuthState;
+use crate::model::BackingOauthState;
 use crate::model::Session;
 use crate::model::WithStatusCode as _;
-use anyhow::Context as _;
+use crate::AppState;
+use crate::EXTREMELY_LOUD_INCORRECT_BUZZER;
 use anyhow::anyhow;
+use anyhow::Context as _;
 use axum::extract::Query;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::Response;
-use base64::Engine as _;
 use serde::Deserialize;
 use std::collections::HashSet;
 
@@ -133,26 +130,29 @@ pub(crate) async fn get(
 
     let mut url = url::Url::parse("https://accounts.google.com/o/oauth2/v2/auth")
         .context("parse base google oauth url")?;
+
+    let state_id = {
+        let backing_state = BackingOauthState {
+            client_id: query.client_id,
+            redirect_uri: query.redirect_uri.into(),
+            state: query.state,
+            code_challenge: query.code_challenge,
+            scope: query.scope.clone(),
+        };
+        let id = uuid::Uuid::new_v4();
+        state
+            .backing_oauth_state_ttl
+            .insert(id, backing_state)
+            .await;
+        id.to_string()
+    };
     {
         let mut query_pairs = url.query_pairs_mut();
         query_pairs.append_pair("client_id", &state.google_client_id);
         query_pairs.append_pair("response_type", "code");
         query_pairs.append_pair("redirect_uri", &goog::redirect_url(&state));
         query_pairs.append_pair("scope", &query.scope);
-        query_pairs.append_pair(
-            "state",
-            // sign me! https://github.com/icssc/auth/pull/6
-            &BASE64_ENGINE.encode(bincode_next::encode_to_vec(
-                PassedAuthState {
-                    client_id: query.client_id,
-                    redirect_uri: query.redirect_uri.into(),
-                    state: query.state,
-                    code_challenge: query.code_challenge,
-                    scope: query.scope,
-                },
-                BINCODE_CONFIG,
-            )?),
-        );
+        query_pairs.append_pair("state", &state_id);
         query_pairs.append_pair("access_type", "offline");
         query_pairs.append_pair("prompt", "select_account");
         query_pairs.append_pair("hl", "en-GB");

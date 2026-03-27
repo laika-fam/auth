@@ -10,10 +10,11 @@ use crate::endpoints::callback;
 use crate::endpoints::jwks;
 use crate::endpoints::openid_config;
 use crate::model::AuthCode;
+use crate::model::BackingOauthState;
 use crate::model::Jwks;
 use crate::model::Session;
-use axum::Router;
 use axum::routing::get;
+use axum::Router;
 use core::ops::Deref;
 use std::fmt::Debug;
 use std::net::Ipv6Addr;
@@ -38,6 +39,8 @@ struct AppStateInner {
     pub http: reqwest::Client,
     pub issuer: Box<str>,
     pub keys: Jwks,
+    // if more providers, split this up
+    pub backing_oauth_state_ttl: MokaKV<uuid::Uuid, BackingOauthState>,
     pub sessions: MokaKV<uuid::Uuid, Arc<Session>>,
     pub auth_codes: MokaKV<uuid::Uuid, AuthCode>,
     pub google_client_id: Box<str>,
@@ -57,13 +60,42 @@ where
 
 impl AppState {
     pub async fn new() -> Self {
+        let keys = if let Some(path) = std::env::var_os("RAILWAY_VOLUME_MOUNT_PATH") {
+            let keys_path = std::path::PathBuf::from(path).join("keys.json");
+            if let Ok(fp) = std::fs::read_to_string(&keys_path)
+                && let Ok(keys) = serde_json::from_str(&fp)
+            {
+                keys
+            } else {
+                let keys = Jwks::new().await;
+                std::fs::write(
+                    keys_path,
+                    &serde_json::to_string_pretty(&keys).expect("serialize keys to json"),
+                )
+                .unwrap();
+                keys
+            }
+        } else {
+            eprintln!("warning: no mount path; keys will not persist!");
+            let keys = Jwks::new().await;
+            keys
+        };
+
         Self(Arc::new(AppStateInner {
             http: reqwest::Client::new(),
             issuer: assert_var::<String>("ISSUER").into_boxed_str(),
-            sessions: moka::future::Cache::new(100_000),
-            keys: Jwks::new().await,
+            keys,
+            backing_oauth_state_ttl: moka::future::Cache::builder()
+                .max_capacity(10_000)
+                .initial_capacity(100)
+                .time_to_live(std::time::Duration::from_secs(assert_var(
+                    "BACKING_OAUTH_STATE_TTL",
+                )))
+                .build(),
+            sessions: moka::future::Cache::new(10_000),
             auth_codes: moka::future::Cache::builder()
-                .max_capacity(100_000)
+                .max_capacity(10_000)
+                .initial_capacity(100)
                 .time_to_live(std::time::Duration::from_secs(assert_var("AUTH_CODE_TTL")))
                 .build(),
             google_client_id: assert_var::<String>("GOOGLE_CLIENT_ID").into_boxed_str(),
