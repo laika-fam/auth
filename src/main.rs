@@ -129,6 +129,7 @@ async fn main() {
         .route("/jwks.json", get(jwks::get))
         .route("/authorize", get(authorize::get))
         .nest("/oauth/cb", callback::router())
+        .layer(tower_cookies::CookieManagerLayer::new())
         .with_state(app_state);
 
     let port = std::env::var("PORT")
