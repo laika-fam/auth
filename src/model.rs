@@ -1,3 +1,4 @@
+use anyhow::Context;
 use axum::http::StatusCode;
 use chrono::Utc;
 use jsonwebkey::KeyUse;
@@ -54,6 +55,61 @@ impl axum::response::IntoResponse for AnyhowBridge {
     }
 }
 
+pub(crate) trait ToFromAws: Sized + Serialize + DeserializeOwned {
+    const S3_KEY: &'static str;
+
+    async fn from_aws(
+        aws: &aws_sdk_s3::Client,
+        bucket_name: &str,
+    ) -> anyhow::Result<Option<Self>> {
+        let mut dl_buf = Vec::new();
+        Ok(
+            match aws.get_object().bucket(bucket_name).key(Self::S3_KEY).send().await {
+                Ok(mut stream) => {
+                    while let Some(bytes) = stream
+                        .body
+                        .try_next()
+                        .await
+                        .with_context(|| format!("next from {bucket_name} download stream"))?
+                    {
+                        dl_buf.extend(bytes);
+                    }
+                    Some(
+                        serde_json::from_slice(&dl_buf)
+                            .with_context(|| format!("parse {bucket_name}"))?,
+                    )
+                }
+                Err(aws_sdk_s3::error::SdkError::ServiceError(e)) if e.err().is_no_such_key() => None,
+                Err(e) => {
+                    return Err(anyhow::Error::new(e).context(format!(
+                        "can't download {bucket_name} from bucket (does it exist?)"
+                    )));
+                }
+            },
+        )
+    }
+
+    async fn to_aws(
+        &self,
+        aws: &aws_sdk_s3::Client,
+        bucket_name: &str,
+    ) -> anyhow::Result<()> {
+        aws.put_object()
+            .bucket(bucket_name)
+            .key(Self::S3_KEY)
+            .body(
+                serde_json::to_vec_pretty(self)
+                    .context("serialize to s3")?
+                    .into(),
+            )
+            .send()
+            .await
+            .context("upload new state to s3")?;
+
+        Ok(())
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct Jwks {
     pub key_id: uuid::Uuid,
@@ -61,8 +117,9 @@ pub(crate) struct Jwks {
     pub private: jsonwebkey::JsonWebKey,
 }
 
-pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose =
-    base64::engine::general_purpose::URL_SAFE_NO_PAD;
+impl ToFromAws for Jwks {
+    const S3_KEY: &'static str = "jwks.json";
+}
 
 impl Jwks {
     pub(crate) async fn new() -> Self {

@@ -13,6 +13,7 @@ use crate::model::AuthCode;
 use crate::model::BackingOauthState;
 use crate::model::Jwks;
 use crate::model::Session;
+use crate::model::ToFromAws;
 use axum::routing::get;
 use axum::Router;
 use core::ops::Deref;
@@ -20,13 +21,6 @@ use std::fmt::Debug;
 use std::net::Ipv6Addr;
 use std::str::FromStr;
 use std::sync::Arc;
-
-pub(crate) const BINCODE_CONFIG: bincode_next::config::Configuration<
-    bincode_next::config::LittleEndian,
-    bincode_next::config::Fixint,
-> = bincode_next::config::standard()
-    .with_little_endian()
-    .with_fixed_int_encoding();
 
 pub(crate) const EXTREMELY_LOUD_INCORRECT_BUZZER: &str = "[\u{1d404}\u{1d417}\u{1d413}\u{1d411}\u{1d404}\u{1d40c}\u{1d404}\u{1d40b}\u{1d418} \u{1d40b}\u{1d40e}\u{1d414}\u{1d403} \u{1d408}\u{1d40d}\u{1d402}\u{1d40e}\u{1d411}\u{1d411}\u{1d404}\u{1d402}\u{1d413} \u{1d401}\u{1d414}\u{1d419}\u{1d419}\u{1d404}\u{1d411}]";
 
@@ -60,19 +54,19 @@ where
 
 impl AppState {
     pub async fn new() -> Self {
-        let keys = if let Some(path) = std::env::var_os("RAILWAY_VOLUME_MOUNT_PATH") {
-            let keys_path = std::path::PathBuf::from(path).join("keys.json");
-            if let Ok(fp) = std::fs::read_to_string(&keys_path)
-                && let Ok(keys) = serde_json::from_str(&fp)
-            {
+        let config = aws_config::load_defaults(aws_config::BehaviorVersion::v2026_01_12()).await;
+        let aws = aws_sdk_s3::Client::new(&config);
+
+        let keys = if let Ok(bucket_name) = std::env::var("AWS_S3_BUCKET_NAME") {
+            if let Ok(Some(keys)) = Jwks::from_aws(&aws, &bucket_name).await {
                 keys
             } else {
                 let keys = Jwks::new().await;
-                std::fs::write(
-                    keys_path,
-                    &serde_json::to_string_pretty(&keys).expect("serialize keys to json"),
-                )
-                .unwrap();
+                if keys.to_aws(&aws, &bucket_name).await.is_err() {
+                    eprintln!(
+                        "warning: couldn't save newly generated keys; they will not persist!"
+                    );
+                };
                 keys
             }
         } else {
