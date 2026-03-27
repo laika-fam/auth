@@ -1,12 +1,21 @@
 use crate::AppState;
 use crate::EXTREMELY_LOUD_INCORRECT_BUZZER;
+use crate::endpoints::authorize::found_redirect;
+use crate::model::SESSION_COOKIE_NAME;
+use crate::model::Session;
+use crate::model::SimpleUuidBuf;
 use crate::model::WithStatusCode;
+use anyhow::Context;
 use anyhow::anyhow;
+use axum::extract::OriginalUri;
 use axum::extract::Query;
 use axum::extract::State;
 use axum::http::Response;
 use axum::http::StatusCode;
 use serde::Deserialize;
+use std::ops::Add;
+use std::sync::Arc;
+use tower_cookies::Cookie;
 
 pub(crate) fn redirect_url(state: &AppState) -> String {
     format!("{}/oauth/cb/goog", state.issuer)
@@ -19,24 +28,12 @@ pub(crate) struct GoogQuery {
     error: Option<String>,
 }
 
-// https://github.com/laggycomputer/pushflow
-#[derive(Debug, Deserialize)]
-struct GoogleExchangeResponse {
-    access_token: String,
-    expires_in: u64,
-    refresh_token: String,
-    // we don't yet deal with time-based access
-    // https://developers.google.com/identity/protocols/oauth2/web-server#time-based-access
-    refresh_token_expires_in: u64,
-    scope: String,
-    // always Bearer, for now (https://developers.google.com/identity/protocols/oauth2/web-server)
-    token_type: String,
-}
-
 #[axum_macros::debug_handler]
 pub(super) async fn get(
     State(state): State<AppState>,
+    cookies: tower_cookies::Cookies,
     Query(query): Query<GoogQuery>,
+    OriginalUri(uri): OriginalUri,
 ) -> crate::Result<Response<axum::body::Body>> {
     if query.error.is_some() {
         return Err(anyhow!("google oauth died"))?;
@@ -45,6 +42,22 @@ pub(super) async fn get(
     let Some((query_code, query_state)) = query.code.zip(query.state) else {
         return Err(anyhow!(EXTREMELY_LOUD_INCORRECT_BUZZER))?;
     };
+
+    // https://github.com/laggycomputer/pushflow
+    #[derive(Debug, Deserialize)]
+    struct GoogleExchangeResponse {
+        access_token: String,
+        expires_in: u64,
+        refresh_token: String,
+        // we don't yet deal with time-based access
+        // https://developers.google.com/identity/protocols/oauth2/web-server#time-based-access
+        refresh_token_expires_in: u64,
+        scope: String,
+        // always Bearer, for now (https://developers.google.com/identity/protocols/oauth2/web-server)
+        token_type: String,
+    }
+
+    let got_tokens_at = chrono::Utc::now();
 
     // https://developers.google.com/identity/openid-connect/openid-connect#exchangecode
     let tokens = state
@@ -60,7 +73,7 @@ pub(super) async fn get(
         .send()
         .await?
         .error_for_status()
-        .with_status_code(StatusCode::BAD_REQUEST)?
+        .with_status_code(StatusCode::INTERNAL_SERVER_ERROR)?
         .json::<GoogleExchangeResponse>()
         .await?;
 
@@ -76,15 +89,69 @@ pub(super) async fn get(
 
     drop(query_state);
 
+    // https://openid.net/specs/openid-connect-core-1_0.html#UserInfoResponse
+    #[derive(Debug, Deserialize)]
+    struct GoogleUserInfoResponse {
+        id: String,
+        email: String,
+        name: String,
+        picture: Option<String>,
+    }
+
     // surely the token has not expired already?
-    let r = state
+    let userinfo = state
         .http
         .get("https://www.googleapis.com/oauth2/v2/userinfo")
         .bearer_auth(&tokens.access_token)
         .send()
         .await?
-        .error_for_status()
-        .with_status_code(StatusCode::BAD_REQUEST);
+        .error_for_status()?
+        .json::<GoogleUserInfoResponse>()
+        .await?;
 
-    todo!()
+    let session_id = uuid::Uuid::new_v4();
+    let session = Session {
+        user_id: format!("google_{}", userinfo.id),
+        email: userinfo.email,
+        name: userinfo.name,
+        picture: userinfo.picture,
+        scope: backing_state.scope,
+        google_access_token: Some(tokens.access_token),
+        google_refresh_token: Some(tokens.refresh_token),
+        google_token_expiry: Some(
+            got_tokens_at.add(
+                chrono::Duration::new(tokens.expires_in.cast_signed(), 0)
+                    .context("duration overflow")?,
+            ),
+        ),
+    };
+    state.sessions.insert(session_id, Arc::from(session)).await;
+    let mut cookie = Cookie::new(
+        SESSION_COOKIE_NAME,
+        SimpleUuidBuf::from(session_id).as_ref().to_owned(),
+    );
+
+    cookie.set_http_only(true);
+    cookie.set_expires(
+        time::OffsetDateTime::from_unix_timestamp(
+            chrono::Utc::now().add(state.session_ttl).timestamp(),
+        )
+        .context("this shouldn't overflow because it was valid in chrono")?,
+    );
+    cookie.set_path("/");
+
+    if uri.scheme() == Some(&axum::http::uri::Scheme::HTTPS) {
+        cookie.set_domain(
+            uri.host()
+                .context("there should be a host part of the request URI")?
+                .to_owned(),
+        );
+        cookie.set_secure(true);
+        cookie.set_same_site(tower_cookies::cookie::SameSite::None);
+    } else {
+        cookie.set_same_site(tower_cookies::cookie::SameSite::Lax);
+    }
+
+    cookies.add(cookie);
+    Ok(found_redirect(backing_state.redirect_uri.as_str()))
 }

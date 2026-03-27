@@ -3,7 +3,9 @@ use crate::EXTREMELY_LOUD_INCORRECT_BUZZER;
 use crate::endpoints::callback::goog;
 use crate::model::AuthCode;
 use crate::model::BackingOauthState;
+use crate::model::SESSION_COOKIE_NAME;
 use crate::model::Session;
+use crate::model::SimpleUuidBuf;
 use crate::model::WithStatusCode as _;
 use anyhow::Context as _;
 use anyhow::anyhow;
@@ -71,7 +73,9 @@ pub(crate) async fn get(
         return Err(anyhow!("nuh uh")).with_status_code(StatusCode::BAD_REQUEST);
     }
 
-    let sess_id = cookies.get("sess").map(|c| c.value().parse::<uuid::Uuid>());
+    let sess_id = cookies
+        .get(SESSION_COOKIE_NAME)
+        .map(|c| c.value().parse::<uuid::Uuid>());
 
     if let Some(Ok(sess_id)) = sess_id
         && let Some(sess_state) = state.sessions.get(&sess_id).await
@@ -102,11 +106,7 @@ pub(crate) async fn get(
         let mut ret = query.redirect_uri;
         {
             let mut query_pairs = ret.query_pairs_mut();
-
-            let mut uuid_buf = [0; uuid::fmt::Simple::LENGTH];
-            auth_code.simple().encode_lower(&mut uuid_buf);
-            // safety: uuid crate wrote ASCII
-            query_pairs.append_pair("code", unsafe { str::from_utf8_unchecked(&uuid_buf) });
+            query_pairs.append_pair("code", SimpleUuidBuf::from(auth_code).as_ref());
             if let Some(ref state) = query.state {
                 query_pairs.append_pair("state", state);
             }

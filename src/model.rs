@@ -204,6 +204,8 @@ pub(crate) struct AuthCode {
     pub code_challenge: String,
 }
 
+pub(crate) const SESSION_COOKIE_NAME: &'static str = "sess";
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub(crate) struct Session {
     pub user_id: String,
@@ -219,4 +221,22 @@ pub(crate) struct Session {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(with = "chrono::serde::ts_milliseconds_option")]
     pub google_token_expiry: Option<chrono::DateTime<Utc>>,
+}
+
+#[derive(Copy, Clone)]
+pub(crate) struct SimpleUuidBuf([u8; uuid::fmt::Simple::LENGTH]);
+
+impl From<uuid::Uuid> for SimpleUuidBuf {
+    fn from(value: uuid::Uuid) -> Self {
+        let mut buf = [0u8; uuid::fmt::Simple::LENGTH];
+        value.simple().encode_lower(&mut buf);
+        Self(buf)
+    }
+}
+
+impl AsRef<str> for SimpleUuidBuf {
+    fn as_ref(&self) -> &str {
+        // safety: uuid crate wrote ASCII
+        unsafe { str::from_utf8_unchecked(&self.0) }
+    }
 }
