@@ -3,7 +3,7 @@ use crate::model::PassedAuthState;
 use crate::model::Session;
 use crate::model::WithStatusCode as _;
 use crate::model::BASE64_ENGINE;
-use crate::AppState;
+use crate::{AppState, EXTREMELY_LOUD_INCORRECT_BUZZER};
 use crate::BINCODE_CONFIG;
 use anyhow::anyhow;
 use anyhow::Context as _;
@@ -15,6 +15,7 @@ use base64::Engine as _;
 use serde::Deserialize;
 use std::collections::HashSet;
 use worker::wasm_bindgen::UnwrapThrowExt as _;
+use crate::endpoints::callback::goog;
 
 struct ClientDef {}
 
@@ -46,8 +47,6 @@ pub(crate) struct AuthorizeQuery {
     prompt: Option<PromptType>,
 }
 
-const EXTREMELY_LOUD_INCORRECT_BUZZER: &str = "[\u{1d404}\u{1d417}\u{1d413}\u{1d411}\u{1d404}\u{1d40c}\u{1d404}\u{1d40b}\u{1d418} \u{1d40b}\u{1d40e}\u{1d414}\u{1d403} \u{1d408}\u{1d40d}\u{1d402}\u{1d40e}\u{1d411}\u{1d411}\u{1d404}\u{1d402}\u{1d413} \u{1d401}\u{1d414}\u{1d419}\u{1d419}\u{1d404}\u{1d411}]";
-
 pub fn found_redirect(location: &str) -> Response {
     Response::builder()
         .header(
@@ -73,7 +72,7 @@ pub(crate) async fn get(
     }
 
     if !allowed(&query.client_id, query.redirect_uri.as_str()) {
-        return Err(anyhow!("GET OUT")).with_status_code(StatusCode::BAD_REQUEST);
+        return Err(anyhow!("nuh uh")).with_status_code(StatusCode::BAD_REQUEST);
     }
 
     let sess = cookies.get("sess");
@@ -143,14 +142,13 @@ pub(crate) async fn get(
         .context("parse base google oauth url")?;
     {
         let mut query_pairs = url.query_pairs_mut();
-        query_pairs.append_pair("access_type", "offline");
-        query_pairs.append_pair("response_type", "code");
         query_pairs.append_pair("client_id", &state.google_client_id);
-        query_pairs.append_pair("redirect_uri", &format!("{}/oauth/cb/goog", &state.issuer));
+        query_pairs.append_pair("response_type", "code");
+        query_pairs.append_pair("redirect_uri", &goog::redirect_url(&state));
         query_pairs.append_pair("scope", &query.scope);
-        query_pairs.append_pair("prompt", "consent");
         query_pairs.append_pair(
             "state",
+            // sign me! https://github.com/icssc/auth/pull/6
             &BASE64_ENGINE.encode(
                 bincode_next::encode_to_vec(
                     PassedAuthState {
@@ -162,9 +160,12 @@ pub(crate) async fn get(
                     },
                     BINCODE_CONFIG,
                 )
-                .unwrap_throw(),
+                    .unwrap_throw(),
             ),
         );
+        query_pairs.append_pair("access_type", "offline");
+        query_pairs.append_pair("prompt", "select_account");
+        query_pairs.append_pair("hl", "en-GB");
     }
 
     Ok(found_redirect(url.as_str()))

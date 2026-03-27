@@ -5,7 +5,7 @@ mod model;
 
 pub(crate) use model::Result;
 
-use crate::endpoints::authorize;
+use crate::endpoints::{authorize, callback};
 use crate::endpoints::jwks;
 use crate::endpoints::openid_config;
 use crate::model::Jwks;
@@ -23,28 +23,28 @@ pub(crate) const BINCODE_CONFIG: bincode_next::config::Configuration<
     .with_little_endian()
     .with_fixed_int_encoding();
 
+pub(crate) const EXTREMELY_LOUD_INCORRECT_BUZZER: &str = "[\u{1d404}\u{1d417}\u{1d413}\u{1d411}\u{1d404}\u{1d40c}\u{1d404}\u{1d40b}\u{1d418} \u{1d40b}\u{1d40e}\u{1d414}\u{1d403} \u{1d408}\u{1d40d}\u{1d402}\u{1d40e}\u{1d411}\u{1d411}\u{1d404}\u{1d402}\u{1d413} \u{1d401}\u{1d414}\u{1d419}\u{1d419}\u{1d404}\u{1d411}]";
+
 #[derive(Clone)]
 struct AppState(pub(crate) Arc<AppStateInner>);
 
 struct AppStateInner {
+    pub http: reqwest::Client,
     pub issuer: Box<str>,
-    pub google_client_id: Box<str>,
     pub sessions: worker::KvStore,
     pub keys: worker::KvStore,
     pub auth_codes: worker::KvStore,
     pub auth_code_ttl: u64,
+    pub google_client_id: Box<str>,
+    pub google_client_secret: Box<str>,
 }
 
 impl AppState {
     fn new(env: worker::Env) -> Self {
         Self(Arc::new(AppStateInner {
+            http: reqwest::Client::new(),
             issuer: env
                 .var("ISSUER")
-                .unwrap_throw()
-                .to_string()
-                .into_boxed_str(),
-            google_client_id: env
-                .var("GOOGLE_CLIENT_ID")
                 .unwrap_throw()
                 .to_string()
                 .into_boxed_str(),
@@ -57,6 +57,16 @@ impl AppState {
                 .to_string()
                 .parse()
                 .unwrap_throw(),
+            google_client_id: env
+                .var("GOOGLE_CLIENT_ID")
+                .unwrap_throw()
+                .to_string()
+                .into_boxed_str(),
+            google_client_secret: env
+                .var("GOOGLE_CLIENT_SECRET")
+                .unwrap_throw()
+                .to_string()
+                .into_boxed_str(),
         }))
     }
 
@@ -113,6 +123,7 @@ fn router(env: worker::Env) -> Router {
         .route("/.well-known/openid-configuration", get(openid_config::get))
         .route("/jwks.json", get(jwks::get))
         .route("/authorize", get(authorize::get))
+        .nest("/oauth/cb", callback::router())
         .with_state(app_state)
 }
 
