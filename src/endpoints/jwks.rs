@@ -6,10 +6,9 @@ use axum::http::HeaderValue;
 use axum::http::Response;
 use axum::response::IntoResponse as _;
 
-#[worker::send]
 #[axum_macros::debug_handler]
 pub(crate) async fn get(State(state): State<AppState>) -> Response<axum::body::Body> {
-    let Jwks { public, .. } = state.keys().await;
+    let Jwks { ref public, .. } = state.keys;
 
     let mut r = axum::Json(public).into_response();
     r.headers_mut().insert(

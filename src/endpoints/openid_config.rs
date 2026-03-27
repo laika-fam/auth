@@ -4,7 +4,6 @@ use axum::http::HeaderName;
 use axum::http::HeaderValue;
 use axum::response::IntoResponse as _;
 
-#[worker::send]
 #[axum_macros::debug_handler]
 pub(crate) async fn get(State(state): State<AppState>) -> axum::http::Response<axum::body::Body> {
     let issuer = &state.issuer;

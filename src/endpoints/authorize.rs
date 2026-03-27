@@ -1,10 +1,12 @@
+use crate::endpoints::callback::goog;
 use crate::model::AuthCode;
 use crate::model::PassedAuthState;
 use crate::model::Session;
 use crate::model::WithStatusCode as _;
 use crate::model::BASE64_ENGINE;
-use crate::{AppState, EXTREMELY_LOUD_INCORRECT_BUZZER};
+use crate::AppState;
 use crate::BINCODE_CONFIG;
+use crate::EXTREMELY_LOUD_INCORRECT_BUZZER;
 use anyhow::anyhow;
 use anyhow::Context as _;
 use axum::extract::Query;
@@ -14,8 +16,6 @@ use axum::response::Response;
 use base64::Engine as _;
 use serde::Deserialize;
 use std::collections::HashSet;
-use worker::wasm_bindgen::UnwrapThrowExt as _;
-use crate::endpoints::callback::goog;
 
 struct ClientDef {}
 
@@ -56,10 +56,9 @@ pub fn found_redirect(location: &str) -> Response {
         )
         .status(StatusCode::FOUND)
         .body(axum::body::Body::empty())
-        .unwrap_throw()
+        .unwrap()
 }
 
-#[worker::send]
 #[axum_macros::debug_handler]
 pub(crate) async fn get(
     State(state): State<AppState>,
@@ -75,46 +74,40 @@ pub(crate) async fn get(
         return Err(anyhow!("nuh uh")).with_status_code(StatusCode::BAD_REQUEST);
     }
 
-    let sess = cookies.get("sess");
-    if let Some(sess) = sess
-        && let Some(sess_state) = state
-            .sessions
-            .get(sess.value())
-            .json::<Session>()
-            .await
-            .unwrap_throw()
+    let sess_id = cookies.get("sess").map(|c| c.value().parse::<uuid::Uuid>());
+
+    if let Some(Ok(sess_id)) = sess_id
+        && let Some(sess_state) = state.sessions.get(&sess_id).await
         && query.prompt != Some(PromptType::Consent)
         && {
-            let session_scopes = sess_state.scope.split(' ').collect::<HashSet<&str>>();
-            query.scope.split(' ').all(|s| session_scopes.contains(s))
-        }
+        let session_scopes = sess_state.scope.split(' ').collect::<HashSet<&str>>();
+        query.scope.split(' ').all(|s| session_scopes.contains(s))
+    }
     {
         let auth_code = uuid::Uuid::new_v4();
-        let mut uuid_buf = [0; uuid::fmt::Simple::LENGTH];
 
         state
             .auth_codes
-            .put(
-                auth_code.simple().encode_lower(&mut uuid_buf),
+            .insert(
+                auth_code,
                 AuthCode {
                     session: Session {
                         scope: query.scope,
-                        ..sess_state
+                        ..(*sess_state).clone()
                     },
                     client_id: query.client_id,
                     redirect_uri: query.redirect_uri.clone(),
                     code_challenge: query.code_challenge,
                 },
             )
-            .unwrap_throw()
-            .expiration_ttl(state.auth_code_ttl)
-            .execute()
-            .await
-            .unwrap_throw();
+            .await;
 
         let mut ret = query.redirect_uri;
         {
             let mut query_pairs = ret.query_pairs_mut();
+
+            let mut uuid_buf = [0; uuid::fmt::Simple::LENGTH];
+            auth_code.simple().encode_lower(&mut uuid_buf);
             // safety: uuid crate wrote ASCII
             query_pairs.append_pair("code", unsafe { str::from_utf8_unchecked(&uuid_buf) });
             if let Some(ref state) = query.state {
@@ -159,8 +152,7 @@ pub(crate) async fn get(
                         scope: query.scope,
                     },
                     BINCODE_CONFIG,
-                )
-                    .unwrap_throw(),
+                )?
             ),
         );
         query_pairs.append_pair("access_type", "offline");

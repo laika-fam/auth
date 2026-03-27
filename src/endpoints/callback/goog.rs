@@ -38,7 +38,6 @@ struct GoogleExchangeResponse {
     token_type: String,
 }
 
-#[worker::send]
 #[axum_macros::debug_handler]
 pub(super) async fn get(
     State(state): State<AppState>,
