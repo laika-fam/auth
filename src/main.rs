@@ -86,7 +86,13 @@ impl AppState {
                     "BACKING_OAUTH_STATE_TTL",
                 )))
                 .build(),
-            sessions: moka::future::Cache::new(10_000),
+            sessions: moka::future::Cache::builder()
+                .max_capacity(10_000)
+                .initial_capacity(100)
+                .time_to_live(std::time::Duration::from_secs(assert_var(
+                    "SESSION_TTL",
+                )))
+                .build(),
             auth_codes: moka::future::Cache::builder()
                 .max_capacity(10_000)
                 .initial_capacity(100)
