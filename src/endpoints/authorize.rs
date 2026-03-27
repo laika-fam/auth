@@ -1,12 +1,12 @@
+use crate::AppState;
+use crate::EXTREMELY_LOUD_INCORRECT_BUZZER;
 use crate::endpoints::callback::goog;
 use crate::model::AuthCode;
 use crate::model::BackingOauthState;
 use crate::model::Session;
 use crate::model::WithStatusCode as _;
-use crate::AppState;
-use crate::EXTREMELY_LOUD_INCORRECT_BUZZER;
-use anyhow::anyhow;
 use anyhow::Context as _;
+use anyhow::anyhow;
 use axum::extract::Query;
 use axum::extract::State;
 use axum::http::StatusCode;

@@ -1,6 +1,6 @@
-use crate::model::WithStatusCode;
 use crate::AppState;
 use crate::EXTREMELY_LOUD_INCORRECT_BUZZER;
+use crate::model::WithStatusCode;
 use anyhow::anyhow;
 use axum::extract::Query;
 use axum::extract::State;

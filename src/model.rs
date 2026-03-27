@@ -6,9 +6,9 @@ use jsonwebkey::RsaPrivate;
 use rand::SeedableRng;
 use rsa::traits::PrivateKeyParts;
 use rsa::traits::PublicKeyParts;
-use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 pub(crate) type Result<T> = core::result::Result<T, AnyhowBridge>;
 
@@ -58,13 +58,16 @@ impl axum::response::IntoResponse for AnyhowBridge {
 pub(crate) trait ToFromAws: Sized + Serialize + DeserializeOwned {
     const S3_KEY: &'static str;
 
-    async fn from_aws(
-        aws: &aws_sdk_s3::Client,
-        bucket_name: &str,
-    ) -> anyhow::Result<Option<Self>> {
+    async fn from_aws(aws: &aws_sdk_s3::Client, bucket_name: &str) -> anyhow::Result<Option<Self>> {
         let mut dl_buf = Vec::new();
         Ok(
-            match aws.get_object().bucket(bucket_name).key(Self::S3_KEY).send().await {
+            match aws
+                .get_object()
+                .bucket(bucket_name)
+                .key(Self::S3_KEY)
+                .send()
+                .await
+            {
                 Ok(mut stream) => {
                     while let Some(bytes) = stream
                         .body
@@ -79,7 +82,9 @@ pub(crate) trait ToFromAws: Sized + Serialize + DeserializeOwned {
                             .with_context(|| format!("parse {bucket_name}"))?,
                     )
                 }
-                Err(aws_sdk_s3::error::SdkError::ServiceError(e)) if e.err().is_no_such_key() => None,
+                Err(aws_sdk_s3::error::SdkError::ServiceError(e)) if e.err().is_no_such_key() => {
+                    None
+                }
                 Err(e) => {
                     return Err(anyhow::Error::new(e).context(format!(
                         "can't download {bucket_name} from bucket (does it exist?)"
@@ -89,11 +94,7 @@ pub(crate) trait ToFromAws: Sized + Serialize + DeserializeOwned {
         )
     }
 
-    async fn to_aws(
-        &self,
-        aws: &aws_sdk_s3::Client,
-        bucket_name: &str,
-    ) -> anyhow::Result<()> {
+    async fn to_aws(&self, aws: &aws_sdk_s3::Client, bucket_name: &str) -> anyhow::Result<()> {
         aws.put_object()
             .bucket(bucket_name)
             .key(Self::S3_KEY)
