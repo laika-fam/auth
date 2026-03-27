@@ -92,10 +92,10 @@ pub(crate) async fn get(
             .insert(
                 auth_code,
                 AuthCode {
-                    session: Session {
+                    session: std::sync::Arc::new(Session {
                         scope: query.scope,
                         ..(*sess_state).clone()
-                    },
+                    }),
                     client_id: query.client_id,
                     redirect_uri: query.redirect_uri.clone(),
                     code_challenge: query.code_challenge,

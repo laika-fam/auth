@@ -196,9 +196,9 @@ pub(crate) struct BackingOauthState {
     pub scope: String,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone)]
 pub(crate) struct AuthCode {
-    pub session: Session,
+    pub session: std::sync::Arc<Session>,
     pub client_id: String,
     pub redirect_uri: url::Url,
     pub code_challenge: String,
@@ -206,20 +206,15 @@ pub(crate) struct AuthCode {
 
 pub(crate) const SESSION_COOKIE_NAME: &'static str = "sess";
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone)]
 pub(crate) struct Session {
     pub user_id: String,
     pub email: String,
     pub name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub picture: Option<String>,
     pub scope: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub google_access_token: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub google_refresh_token: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "chrono::serde::ts_milliseconds_option")]
     pub google_token_expiry: Option<chrono::DateTime<Utc>>,
 }
 

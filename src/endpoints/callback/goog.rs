@@ -1,12 +1,13 @@
-use crate::AppState;
-use crate::EXTREMELY_LOUD_INCORRECT_BUZZER;
 use crate::endpoints::authorize::found_redirect;
-use crate::model::SESSION_COOKIE_NAME;
+use crate::model::AuthCode;
 use crate::model::Session;
 use crate::model::SimpleUuidBuf;
 use crate::model::WithStatusCode;
-use anyhow::Context;
+use crate::model::SESSION_COOKIE_NAME;
+use crate::AppState;
+use crate::EXTREMELY_LOUD_INCORRECT_BUZZER;
 use anyhow::anyhow;
+use anyhow::Context;
 use axum::extract::OriginalUri;
 use axum::extract::Query;
 use axum::extract::State;
@@ -110,7 +111,7 @@ pub(super) async fn get(
         .await?;
 
     let session_id = uuid::Uuid::new_v4();
-    let session = Session {
+    let session = Arc::new(Session {
         user_id: format!("google_{}", userinfo.id),
         email: userinfo.email,
         name: userinfo.name,
@@ -124,8 +125,8 @@ pub(super) async fn get(
                     .context("duration overflow")?,
             ),
         ),
-    };
-    state.sessions.insert(session_id, Arc::from(session)).await;
+    });
+    state.sessions.insert(session_id, session.clone()).await;
     let mut cookie = Cookie::new(
         SESSION_COOKIE_NAME,
         SimpleUuidBuf::from(session_id).as_ref().to_owned(),
@@ -153,5 +154,28 @@ pub(super) async fn get(
     }
 
     cookies.add(cookie);
-    Ok(found_redirect(backing_state.redirect_uri.as_str()))
+
+    let auth_code_id = uuid::Uuid::new_v4();
+    state
+        .auth_codes
+        .insert(
+            auth_code_id,
+            AuthCode {
+                session,
+                client_id: backing_state.client_id,
+                redirect_uri: backing_state.redirect_uri.clone(),
+                code_challenge: backing_state.code_challenge,
+            },
+        )
+        .await;
+
+    let mut redirect_url = backing_state.redirect_uri;
+    {
+        let mut query_pairs = redirect_url.query_pairs_mut();
+        query_pairs.append_pair("code", SimpleUuidBuf::from(auth_code_id).as_ref());
+        if let Some(passed_state) = backing_state.state {
+            query_pairs.append_pair("state", &passed_state);
+        }
+    }
+    Ok(found_redirect(redirect_url.as_str()))
 }
