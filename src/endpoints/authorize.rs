@@ -1,14 +1,14 @@
-use crate::endpoints::callback::goog;
-use crate::model::AuthCode;
-use crate::model::PassedAuthState;
-use crate::model::Session;
-use crate::model::WithStatusCode as _;
-use crate::model::BASE64_ENGINE;
 use crate::AppState;
 use crate::BINCODE_CONFIG;
 use crate::EXTREMELY_LOUD_INCORRECT_BUZZER;
-use anyhow::anyhow;
+use crate::endpoints::callback::goog;
+use crate::model::AuthCode;
+use crate::model::BASE64_ENGINE;
+use crate::model::PassedAuthState;
+use crate::model::Session;
+use crate::model::WithStatusCode as _;
 use anyhow::Context as _;
+use anyhow::anyhow;
 use axum::extract::Query;
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -80,9 +80,9 @@ pub(crate) async fn get(
         && let Some(sess_state) = state.sessions.get(&sess_id).await
         && query.prompt != Some(PromptType::Consent)
         && {
-        let session_scopes = sess_state.scope.split(' ').collect::<HashSet<&str>>();
-        query.scope.split(' ').all(|s| session_scopes.contains(s))
-    }
+            let session_scopes = sess_state.scope.split(' ').collect::<HashSet<&str>>();
+            query.scope.split(' ').all(|s| session_scopes.contains(s))
+        }
     {
         let auth_code = uuid::Uuid::new_v4();
 
@@ -142,18 +142,16 @@ pub(crate) async fn get(
         query_pairs.append_pair(
             "state",
             // sign me! https://github.com/icssc/auth/pull/6
-            &BASE64_ENGINE.encode(
-                bincode_next::encode_to_vec(
-                    PassedAuthState {
-                        client_id: query.client_id,
-                        redirect_uri: query.redirect_uri.into(),
-                        state: query.state,
-                        code_challenge: query.code_challenge,
-                        scope: query.scope,
-                    },
-                    BINCODE_CONFIG,
-                )?
-            ),
+            &BASE64_ENGINE.encode(bincode_next::encode_to_vec(
+                PassedAuthState {
+                    client_id: query.client_id,
+                    redirect_uri: query.redirect_uri.into(),
+                    state: query.state,
+                    code_challenge: query.code_challenge,
+                    scope: query.scope,
+                },
+                BINCODE_CONFIG,
+            )?),
         );
         query_pairs.append_pair("access_type", "offline");
         query_pairs.append_pair("prompt", "select_account");

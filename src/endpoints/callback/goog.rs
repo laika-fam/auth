@@ -1,11 +1,11 @@
-use crate::model::PassedAuthState;
-use crate::model::WithStatusCode;
-use crate::model::BASE64_ENGINE;
 use crate::AppState;
 use crate::BINCODE_CONFIG;
 use crate::EXTREMELY_LOUD_INCORRECT_BUZZER;
-use anyhow::anyhow;
+use crate::model::BASE64_ENGINE;
+use crate::model::PassedAuthState;
+use crate::model::WithStatusCode;
 use anyhow::Context;
+use anyhow::anyhow;
 use axum::extract::Query;
 use axum::extract::State;
 use axum::http::Response;
