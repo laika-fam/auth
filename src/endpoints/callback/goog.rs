@@ -1,13 +1,13 @@
+use crate::AppState;
+use crate::EXTREMELY_LOUD_INCORRECT_BUZZER;
 use crate::endpoints::authorize::found_redirect;
 use crate::model::AuthCode;
+use crate::model::SESSION_COOKIE_NAME;
 use crate::model::Session;
 use crate::model::SimpleUuidBuf;
 use crate::model::WithStatusCode;
-use crate::model::SESSION_COOKIE_NAME;
-use crate::AppState;
-use crate::EXTREMELY_LOUD_INCORRECT_BUZZER;
-use anyhow::anyhow;
 use anyhow::Context;
+use anyhow::anyhow;
 use axum::extract::OriginalUri;
 use axum::extract::Query;
 use axum::extract::State;
@@ -24,7 +24,7 @@ pub(crate) fn redirect_url(state: &AppState) -> String {
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct GoogQuery {
-    code: Option<String>,
+    code: Option<uuid::Uuid>,
     state: Option<String>,
     error: Option<String>,
 }
@@ -65,7 +65,8 @@ pub(super) async fn get(
         .http
         .post("https://oauth2.googleapis.com/token")
         .form(&[
-            ("code", query_code.as_str()),
+            // silently enforces that state has to be in this format, not any UUID, which is fine
+            ("code", SimpleUuidBuf::from(query_code).as_ref()),
             ("client_id", &state.google_client_id),
             ("client_secret", &state.google_client_secret),
             ("redirect_uri", &redirect_url(&state)),
@@ -80,13 +81,12 @@ pub(super) async fn get(
 
     // don't reorder this earlier; make sure google agrees this is valid
     // before we destroy our own data
-    let backing_state = if let Ok(k) = query_code.parse::<uuid::Uuid>()
-        && let Some(passed) = state.backing_oauth_state_ttl.remove(&k).await
-    {
-        passed
-    } else {
-        return Err(anyhow!(EXTREMELY_LOUD_INCORRECT_BUZZER))?;
-    };
+    let backing_state =
+        if let Some(passed) = state.backing_oauth_state_ttl.remove(&query_code).await {
+            passed
+        } else {
+            return Err(anyhow!(EXTREMELY_LOUD_INCORRECT_BUZZER))?;
+        };
 
     drop(query_state);
 
