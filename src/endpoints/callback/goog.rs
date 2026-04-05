@@ -47,15 +47,15 @@ pub(super) async fn get(
     // https://github.com/laggycomputer/pushflow
     #[derive(Debug, Deserialize)]
     struct GoogleExchangeResponse {
-        access_token: String,
+        access_token: Box<str>,
         expires_in: u64,
-        refresh_token: String,
+        refresh_token: Box<str>,
         // we don't yet deal with time-based access
         // https://developers.google.com/identity/protocols/oauth2/web-server#time-based-access
         refresh_token_expires_in: u64,
-        scope: String,
+        scope: Box<str>,
         // always Bearer, for now (https://developers.google.com/identity/protocols/oauth2/web-server)
-        token_type: String,
+        token_type: Box<str>,
     }
 
     let got_tokens_at = chrono::Utc::now();
@@ -93,10 +93,10 @@ pub(super) async fn get(
     // https://openid.net/specs/openid-connect-core-1_0.html#UserInfoResponse
     #[derive(Debug, Deserialize)]
     struct GoogleUserInfoResponse {
-        id: String,
-        email: String,
-        name: String,
-        picture: Option<String>,
+        id: Box<str>,
+        email: Box<str>,
+        name: Box<str>,
+        picture: Option<Box<str>>,
     }
 
     // surely the token has not expired already?
@@ -112,7 +112,7 @@ pub(super) async fn get(
 
     let session_id = uuid::Uuid::new_v4();
     let session = Arc::new(Session {
-        user_id: format!("google_{}", userinfo.id),
+        user_id: format!("google_{}", userinfo.id).into_boxed_str(),
         email: userinfo.email,
         name: userinfo.name,
         picture: userinfo.picture,
@@ -160,12 +160,12 @@ pub(super) async fn get(
         .auth_codes
         .insert(
             auth_code_id,
-            AuthCode {
+            Arc::new(AuthCode {
                 session,
                 client_id: backing_state.client_id,
                 redirect_uri: backing_state.redirect_uri.clone(),
                 code_challenge: backing_state.code_challenge,
-            },
+            }),
         )
         .await;
 

@@ -9,6 +9,8 @@ use crate::endpoints::authorize;
 use crate::endpoints::callback;
 use crate::endpoints::jwks;
 use crate::endpoints::openid_config;
+use crate::endpoints::token;
+use crate::model::AccessToken;
 use crate::model::AuthCode;
 use crate::model::BackingOauthState;
 use crate::model::Jwks;
@@ -37,9 +39,14 @@ struct AppStateInner {
     pub backing_oauth_state_ttl: MokaKV<uuid::Uuid, BackingOauthState>,
     pub sessions: MokaKV<uuid::Uuid, Arc<Session>>,
     pub session_ttl: std::time::Duration,
-    pub auth_codes: MokaKV<uuid::Uuid, AuthCode>,
     pub google_client_id: Box<str>,
     pub google_client_secret: Box<str>,
+    pub auth_codes: MokaKV<uuid::Uuid, Arc<AuthCode>>,
+    pub access_tokens: MokaKV<uuid::Uuid, Arc<AccessToken>>,
+    pub access_token_ttl: std::time::Duration,
+    // refresh tokens in redis
+    pub refresh_token_ttl: std::time::Duration,
+    pub redis: redis::Client,
 }
 
 fn assert_var<T>(var: &str) -> T
@@ -77,6 +84,7 @@ impl AppState {
         };
 
         let session_ttl = std::time::Duration::from_secs(assert_var("SESSION_TTL"));
+        let access_token_ttl = std::time::Duration::from_secs(assert_var("ACCESS_TOKEN_TTL"));
 
         Self(Arc::new(AppStateInner {
             http: reqwest::Client::new(),
@@ -95,13 +103,22 @@ impl AppState {
                 .time_to_live(session_ttl)
                 .build(),
             session_ttl,
+            google_client_id: assert_var::<String>("GOOGLE_CLIENT_ID").into_boxed_str(),
+            google_client_secret: assert_var::<String>("GOOGLE_CLIENT_SECRET").into_boxed_str(),
             auth_codes: moka::future::Cache::builder()
                 .max_capacity(10_000)
                 .initial_capacity(100)
                 .time_to_live(std::time::Duration::from_secs(assert_var("AUTH_CODE_TTL")))
                 .build(),
-            google_client_id: assert_var::<String>("GOOGLE_CLIENT_ID").into_boxed_str(),
-            google_client_secret: assert_var::<String>("GOOGLE_CLIENT_SECRET").into_boxed_str(),
+            access_tokens: moka::future::Cache::builder()
+                .max_capacity(10_000)
+                .initial_capacity(100)
+                .time_to_live(access_token_ttl)
+                .build(),
+            access_token_ttl,
+            refresh_token_ttl: std::time::Duration::from_secs(assert_var("REFRESH_TOKEN_TTL")),
+            redis: redis::Client::open(assert_var::<String>("REDIS_URL"))
+                .expect("connect to redis"),
         }))
     }
 }
@@ -131,6 +148,7 @@ async fn main() {
         .route("/jwks.json", get(jwks::get))
         .route("/authorize", get(authorize::get))
         .nest("/oauth/cb", callback::router())
+        .route("/token", get(token::get))
         .layer(tower_cookies::CookieManagerLayer::new())
         .with_state(app_state);
 

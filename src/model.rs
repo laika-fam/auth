@@ -16,6 +16,7 @@ pub(crate) type Result<T> = core::result::Result<T, AnyhowBridge>;
 pub(crate) struct AnyhowBridge(Box<(anyhow::Error, StatusCode)>);
 
 impl core::fmt::Display for AnyhowBridge {
+    #[inline]
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         self.0.0.fmt(f)
     }
@@ -25,6 +26,7 @@ impl<T> From<T> for AnyhowBridge
 where
     T: Into<anyhow::Error>,
 {
+    #[inline]
     fn from(value: T) -> Self {
         Self(Box::new((value.into(), StatusCode::INTERNAL_SERVER_ERROR)))
     }
@@ -38,12 +40,14 @@ impl<T, E> WithStatusCode<T> for core::result::Result<T, E>
 where
     E: Into<anyhow::Error>,
 {
+    #[inline]
     fn with_status_code(self, code: StatusCode) -> Result<T> {
         self.map_err(|err| AnyhowBridge(Box::new((err.into(), code))))
     }
 }
 
 impl axum::response::IntoResponse for AnyhowBridge {
+    #[inline]
     fn into_response(self) -> axum::response::Response {
         (
             self.0.1,
@@ -189,32 +193,32 @@ impl Jwks {
 
 #[derive(Debug, Clone)]
 pub(crate) struct BackingOauthState {
-    pub client_id: String,
+    pub client_id: Box<str>,
     pub redirect_uri: url::Url,
-    pub state: Option<String>,
-    pub code_challenge: String,
-    pub scope: String,
+    pub state: Option<Box<str>>,
+    pub code_challenge: Box<str>,
+    pub scope: Box<str>,
 }
 
 #[derive(Debug, Clone)]
 pub(crate) struct AuthCode {
     pub session: std::sync::Arc<Session>,
-    pub client_id: String,
+    pub client_id: Box<str>,
     pub redirect_uri: url::Url,
-    pub code_challenge: String,
+    pub code_challenge: Box<str>,
 }
 
 pub(crate) const SESSION_COOKIE_NAME: &'static str = "sess";
 
 #[derive(Debug, Clone)]
 pub(crate) struct Session {
-    pub user_id: String,
-    pub email: String,
-    pub name: String,
-    pub picture: Option<String>,
-    pub scope: String,
-    pub google_access_token: Option<String>,
-    pub google_refresh_token: Option<String>,
+    pub user_id: Box<str>,
+    pub email: Box<str>,
+    pub name: Box<str>,
+    pub picture: Option<Box<str>>,
+    pub scope: Box<str>,
+    pub google_access_token: Option<Box<str>>,
+    pub google_refresh_token: Option<Box<str>>,
     pub google_token_expiry: Option<chrono::DateTime<Utc>>,
 }
 
@@ -222,6 +226,7 @@ pub(crate) struct Session {
 pub(crate) struct SimpleUuidBuf([u8; uuid::fmt::Simple::LENGTH]);
 
 impl From<uuid::Uuid> for SimpleUuidBuf {
+    #[inline]
     fn from(value: uuid::Uuid) -> Self {
         let mut buf = [0u8; uuid::fmt::Simple::LENGTH];
         value.simple().encode_lower(&mut buf);
@@ -230,8 +235,30 @@ impl From<uuid::Uuid> for SimpleUuidBuf {
 }
 
 impl AsRef<str> for SimpleUuidBuf {
+    #[inline]
     fn as_ref(&self) -> &str {
         // safety: uuid crate wrote ASCII
         unsafe { str::from_utf8_unchecked(&self.0) }
     }
+}
+
+#[derive(Debug)]
+pub(crate) struct AccessToken {
+    pub user_id: Box<str>,
+    pub email: Box<str>,
+    pub name: Box<str>,
+    pub picture: Option<Box<str>>,
+    pub scope: Box<str>,
+    pub exp: chrono::DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub(crate) struct RefreshTokenDataView<'o> {
+    pub user_id: &'o str,
+    pub email: &'o str,
+    pub name: &'o str,
+    pub picture: Option<&'o str>,
+    pub client_id: &'o str,
+    pub scope: &'o str,
+    pub google_refresh_token: Option<&'o str>,
 }

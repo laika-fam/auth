@@ -36,13 +36,13 @@ enum PromptType {
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct AuthorizeQuery {
-    response_type: String,
-    client_id: String,
+    response_type: Box<str>,
+    client_id: Box<str>,
     redirect_uri: url::Url,
-    scope: String,
-    state: Option<String>,
-    code_challenge: String,
-    code_challenge_method: String,
+    scope: Box<str>,
+    state: Option<Box<str>>,
+    code_challenge: Box<str>,
+    code_challenge_method: Box<str>,
     prompt: Option<PromptType>,
 }
 
@@ -64,7 +64,7 @@ pub(crate) async fn get(
     cookies: tower_cookies::Cookies,
     Query(query): Query<AuthorizeQuery>,
 ) -> crate::Result<Response<axum::body::Body>> {
-    if !(query.response_type == "code" && query.code_challenge_method == "S256") {
+    if !(&*query.response_type == "code" && &*query.code_challenge_method == "S256") {
         return Err(anyhow!(EXTREMELY_LOUD_INCORRECT_BUZZER))
             .with_status_code(StatusCode::BAD_REQUEST);
     }
@@ -91,7 +91,7 @@ pub(crate) async fn get(
             .auth_codes
             .insert(
                 auth_code,
-                AuthCode {
+                std::sync::Arc::new(AuthCode {
                     session: std::sync::Arc::new(Session {
                         scope: query.scope,
                         ..(*sess_state).clone()
@@ -99,7 +99,7 @@ pub(crate) async fn get(
                     client_id: query.client_id,
                     redirect_uri: query.redirect_uri.clone(),
                     code_challenge: query.code_challenge,
-                },
+                }),
             )
             .await;
 
