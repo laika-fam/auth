@@ -6,7 +6,6 @@ use axum::http::Response;
 use axum::response::IntoResponse as _;
 
 #[axum_macros::debug_handler]
-#[expect(clippy::unused_async, reason = "required by axum")]
 pub(crate) async fn get(State(state): State<AppState>) -> Response<axum::body::Body> {
     let Jwks { ref public, .. } = state.keys;
 
