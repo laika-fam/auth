@@ -81,12 +81,12 @@ pub(super) async fn get(
 
     // don't reorder this earlier; make sure google agrees this is valid
     // before we destroy our own data
-    let backing_state =
-        if let Some(passed) = state.backing_oauth_state_ttl.remove(&query_code).await {
-            passed
-        } else {
-            return Err(anyhow!(EXTREMELY_LOUD_INCORRECT_BUZZER))?;
-        };
+    let backing_state = state
+        .backing_oauth_state
+        .remove(&query_code)
+        .await
+        .context(EXTREMELY_LOUD_INCORRECT_BUZZER)
+        .with_status_code(StatusCode::BAD_REQUEST)?;
 
     drop(query_state);
 
