@@ -2,6 +2,7 @@
 
 mod endpoints;
 mod model;
+mod serde;
 
 pub(crate) use model::Result;
 
@@ -18,9 +19,9 @@ use crate::model::Session;
 use crate::model::ToFromAws as _;
 use axum::Router;
 use axum::routing::get;
-use core::ops::Deref;
 use core::fmt::Debug;
 use core::net::Ipv6Addr;
+use core::ops::Deref;
 use core::str::FromStr;
 use std::sync::Arc;
 
@@ -79,7 +80,7 @@ impl AppState {
             }
         } else {
             eprintln!("warning: no mount path; keys will not persist!");
-            
+
             Jwks::new().await
         };
 

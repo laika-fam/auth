@@ -145,7 +145,8 @@ impl Jwks {
             private: Some(RsaPrivate {
                 d: private_gen.d().to_be_bytes_trimmed_vartime().into(),
                 p: private_gen
-                    .primes().first()
+                    .primes()
+                    .first()
                     .map(|v| v.to_be_bytes_trimmed_vartime().into()),
                 q: private_gen
                     .primes()
@@ -253,7 +254,7 @@ pub(crate) struct AccessToken {
 }
 
 // references instead of Arc because this may come to/from redis
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct RefreshTokenDataView<'o> {
     pub user_id: &'o str,
     pub email: &'o str,

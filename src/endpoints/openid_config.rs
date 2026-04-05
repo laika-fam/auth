@@ -4,6 +4,7 @@ use axum::http::HeaderName;
 use axum::http::HeaderValue;
 use axum::response::IntoResponse as _;
 
+#[expect(clippy::unused_async, reason = "required by axum")]
 #[axum_macros::debug_handler]
 pub(crate) async fn get(State(state): State<AppState>) -> axum::http::Response<axum::body::Body> {
     let issuer = &state.issuer;
