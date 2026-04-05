@@ -167,6 +167,8 @@ async fn main() {
         .await
         .unwrap();
 
+    println!("serving on {port}...");
+
     #[expect(clippy::unwrap_used, reason = "never returns")]
     axum::serve(listener, app).await.unwrap();
 }
