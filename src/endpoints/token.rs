@@ -163,6 +163,7 @@ pub(crate) async fn get(
             struct CodeGrant<'o> {
                 token_type: &'static str,
                 access_token: uuid::Uuid,
+                refresh_token: uuid::Uuid,
                 id_token: &'o str,
                 expires_in: u64,
                 google_access_token: Option<&'o str>,
@@ -174,6 +175,7 @@ pub(crate) async fn get(
             let mut r = Json(CodeGrant {
                 token_type: "Bearer",
                 access_token: access_token_id,
+                refresh_token: refresh_token_id,
                 id_token: &access_jwt,
                 expires_in: state.access_token_ttl.as_secs(),
                 google_access_token: auth_code.session.google_access_token.as_deref(),
