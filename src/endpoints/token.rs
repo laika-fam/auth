@@ -27,13 +27,15 @@ const BASE64_ENGINE: base64::engine::GeneralPurpose =
 #[serde(rename_all = "snake_case")]
 pub(crate) enum TokenExchangeBody {
     AuthorizationCode {
+        #[serde(with = "uuid::serde::simple")]
         code: uuid::Uuid,
         redirect_uri: url::Url,
         client_id: Option<String>,
         code_verifier: String,
     },
     RefreshToken {
-        refresh_token: String,
+        #[serde(with = "uuid::serde::simple")]
+        refresh_token: uuid::Uuid,
         client_id: Option<String>,
     },
 }
@@ -162,7 +164,9 @@ pub(crate) async fn get(
             #[derive(Debug, Serialize)]
             struct CodeGrant<'o> {
                 token_type: &'static str,
+                #[serde(with = "uuid::serde::simple")]
                 access_token: uuid::Uuid,
+                #[serde(with = "uuid::serde::simple")]
                 refresh_token: uuid::Uuid,
                 id_token: &'o str,
                 expires_in: u64,
