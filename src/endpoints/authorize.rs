@@ -48,6 +48,7 @@ pub(crate) struct AuthorizeQuery {
 }
 
 pub fn found_redirect(location: &str) -> Response {
+    #[expect(clippy::unwrap_used, reason = "we didn't poison this builder, but checking can't hurt (instead of unwrap_unchecked)")]
     Response::builder()
         .header(
             axum::http::header::LOCATION,

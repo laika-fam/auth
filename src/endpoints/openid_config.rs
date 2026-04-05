@@ -3,8 +3,8 @@ use axum::extract::State;
 use axum::http::HeaderValue;
 use axum::response::IntoResponse as _;
 
-#[expect(clippy::unused_async, reason = "required by axum")]
 #[axum_macros::debug_handler]
+#[expect(clippy::unused_async, reason = "required by axum")]
 pub(crate) async fn get(State(state): State<AppState>) -> axum::http::Response<axum::body::Body> {
     let issuer = &state.issuer;
 

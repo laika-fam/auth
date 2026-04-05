@@ -1,6 +1,9 @@
 pub(crate) mod option_non_nil_uuid_simple {
+    #![allow(dead_code, reason = "can't hurt to have both if only one is used")]
+
     use serde::Deserialize as _;
 
+    #[expect(clippy::ref_option, reason = "this is how serde works, idiom doesn't matter")]
     pub fn serialize<S>(u: &Option<uuid::NonNilUuid>, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,

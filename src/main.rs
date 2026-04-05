@@ -119,6 +119,7 @@ impl AppState {
                 .build(),
             access_token_ttl,
             refresh_token_ttl: core::time::Duration::from_secs(assert_var("REFRESH_TOKEN_TTL")),
+            #[expect(clippy::expect_used, reason = "we can crash if setup fails")]
             redis: redis::Client::open(assert_var::<String>("REDIS_URL"))
                 .expect("connect to redis"),
         }))
@@ -155,13 +156,17 @@ async fn main() {
         .layer(tower_cookies::CookieManagerLayer::new())
         .with_state(app_state);
 
+    #[expect(clippy::expect_used, reason = "we cannot proceed without a valid port")]
     let port = std::env::var("PORT")
         .unwrap_or(String::from("1989"))
         .parse::<u16>()
         .expect("$PORT not valid u16 port");
 
+    #[expect(clippy::unwrap_used, reason = "we cannot proceed without binding")]
     let listener = tokio::net::TcpListener::bind((Ipv6Addr::UNSPECIFIED, port))
         .await
         .unwrap();
+
+    #[expect(clippy::unwrap_used, reason = "never returns")]
     axum::serve(listener, app).await.unwrap();
 }

@@ -6,9 +6,9 @@ use jsonwebkey::RsaPrivate;
 use rand::SeedableRng as _;
 use rsa::traits::PrivateKeyParts as _;
 use rsa::traits::PublicKeyParts as _;
+use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde::Serialize;
-use serde::de::DeserializeOwned;
 use std::sync::Arc;
 
 pub(crate) type Result<T> = core::result::Result<T, AnyhowBridge>;
@@ -128,9 +128,11 @@ impl ToFromAws for Jwks {
 }
 
 impl Jwks {
+    #[expect(clippy::unused_async, reason = "may be async on wasm")]
     pub(crate) async fn new() -> Self {
         let mut rng = rand::rngs::ChaCha20Rng::from_rng(&mut rand::rng());
-        let private_gen = rsa::RsaPrivateKey::new(&mut rng, 4096).unwrap();
+        // safety: 4096 > 1024 minimum bits
+        let private_gen = unsafe { rsa::RsaPrivateKey::new(&mut rng, 4096).unwrap_unchecked() };
         assert_eq!(
             *private_gen.e_bytes(),
             [0x01, 0x00, 0x01],
@@ -167,21 +169,26 @@ impl Jwks {
         let key_id = uuid::Uuid::new_v4();
 
         let mut public_jwk = jsonwebkey::JsonWebKey::new(
-            rsa.clone()
-                .to_public()
-                .expect("there is a public part")
-                .into_owned(),
+            // safety: there is a public part
+            unsafe { rsa.clone().to_public().unwrap_unchecked().into_owned() },
         );
-        public_jwk
-            .set_algorithm(jsonwebkey::Algorithm::RS256)
-            .expect("RS256 is correct for an RSA key");
+
+        // safety: RS256 is correct for an RSA key
+        unsafe {
+            public_jwk
+                .set_algorithm(jsonwebkey::Algorithm::RS256)
+                .unwrap_unchecked();
+        }
         public_jwk.key_use = Some(KeyUse::Signing);
         public_jwk.key_id = Some(key_id.to_string());
 
         let mut private_jwk = jsonwebkey::JsonWebKey::new(rsa);
-        private_jwk
-            .set_algorithm(jsonwebkey::Algorithm::RS256)
-            .expect("RS256 is correct for an RSA key");
+        // safety: RS256 is correct for an RSA key
+        unsafe {
+            private_jwk
+                .set_algorithm(jsonwebkey::Algorithm::RS256)
+                .unwrap_unchecked();
+        }
         private_jwk.key_id = Some(key_id.to_string());
 
         Self {
