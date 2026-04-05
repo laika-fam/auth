@@ -1,13 +1,13 @@
-use crate::AppState;
-use crate::EXTREMELY_LOUD_INCORRECT_BUZZER;
 use crate::endpoints::authorize::found_redirect;
 use crate::model::AuthCode;
-use crate::model::SESSION_COOKIE_NAME;
 use crate::model::Session;
 use crate::model::SimpleUuidBuf;
 use crate::model::WithStatusCode;
-use anyhow::Context;
+use crate::model::SESSION_COOKIE_NAME;
+use crate::AppState;
+use crate::EXTREMELY_LOUD_INCORRECT_BUZZER;
 use anyhow::anyhow;
+use anyhow::Context;
 use axum::extract::OriginalUri;
 use axum::extract::Query;
 use axum::extract::State;
@@ -47,9 +47,9 @@ pub(super) async fn get(
     // https://github.com/laggycomputer/pushflow
     #[derive(Debug, Deserialize)]
     struct GoogleExchangeResponse {
-        access_token: Box<str>,
+        access_token: Arc<str>,
         expires_in: u64,
-        refresh_token: Box<str>,
+        refresh_token: Arc<str>,
         // we don't yet deal with time-based access
         // https://developers.google.com/identity/protocols/oauth2/web-server#time-based-access
         refresh_token_expires_in: u64,
@@ -81,8 +81,8 @@ pub(super) async fn get(
 
     // don't reorder this earlier; make sure google agrees this is valid
     // before we destroy our own data
-    let backing_state = state
-        .backing_oauth_state
+    let mut backing_state = state
+        .backing_oauth_states
         .remove(&query_code)
         .await
         .context(EXTREMELY_LOUD_INCORRECT_BUZZER)
@@ -93,10 +93,10 @@ pub(super) async fn get(
     // https://openid.net/specs/openid-connect-core-1_0.html#UserInfoResponse
     #[derive(Debug, Deserialize)]
     struct GoogleUserInfoResponse {
-        id: Box<str>,
-        email: Box<str>,
-        name: Box<str>,
-        picture: Option<Box<str>>,
+        id: Arc<str>,
+        email: Arc<str>,
+        name: Arc<str>,
+        picture: Option<Arc<str>>,
     }
 
     // surely the token has not expired already?
@@ -112,7 +112,7 @@ pub(super) async fn get(
 
     let session_id = uuid::Uuid::new_v4();
     let session = Arc::new(Session {
-        user_id: format!("google_{}", userinfo.id).into_boxed_str(),
+        user_id: Arc::from(format!("google_{}", userinfo.id).into_boxed_str()),
         email: userinfo.email,
         name: userinfo.name,
         picture: userinfo.picture,
@@ -169,7 +169,7 @@ pub(super) async fn get(
         )
         .await;
 
-    let mut redirect_url = backing_state.redirect_uri;
+    let redirect_url = Arc::make_mut(&mut backing_state.redirect_uri);
     {
         let mut query_pairs = redirect_url.query_pairs_mut();
         query_pairs.append_pair("code", SimpleUuidBuf::from(auth_code_id).as_ref());

@@ -36,7 +36,7 @@ struct AppStateInner {
     pub issuer: Box<str>,
     pub keys: Jwks,
     // if more providers, split this up
-    pub backing_oauth_state_ttl: MokaKV<uuid::Uuid, BackingOauthState>,
+    pub backing_oauth_states: MokaKV<uuid::Uuid, BackingOauthState>,
     pub sessions: MokaKV<uuid::Uuid, Arc<Session>>,
     pub session_ttl: std::time::Duration,
     pub google_client_id: Box<str>,
@@ -90,7 +90,7 @@ impl AppState {
             http: reqwest::Client::new(),
             issuer: assert_var::<String>("ISSUER").into_boxed_str(),
             keys,
-            backing_oauth_state_ttl: moka::future::Cache::builder()
+            backing_oauth_states: moka::future::Cache::builder()
                 .max_capacity(10_000)
                 .initial_capacity(100)
                 .time_to_live(std::time::Duration::from_secs(assert_var(

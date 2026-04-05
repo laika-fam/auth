@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use anyhow::Context;
 use axum::http::StatusCode;
 use chrono::Utc;
@@ -193,32 +194,32 @@ impl Jwks {
 
 #[derive(Debug, Clone)]
 pub(crate) struct BackingOauthState {
-    pub client_id: Box<str>,
-    pub redirect_uri: url::Url,
-    pub state: Option<Box<str>>,
-    pub code_challenge: Box<str>,
-    pub scope: Box<str>,
+    pub client_id: Arc<str>,
+    pub redirect_uri: Arc<url::Url>,
+    pub state: Option<Arc<str>>,
+    pub code_challenge: Arc<str>,
+    pub scope: Arc<str>,
 }
 
 #[derive(Debug, Clone)]
 pub(crate) struct AuthCode {
-    pub session: std::sync::Arc<Session>,
-    pub client_id: Box<str>,
-    pub redirect_uri: url::Url,
-    pub code_challenge: Box<str>,
+    pub session: Arc<Session>,
+    pub client_id: Arc<str>,
+    pub redirect_uri: Arc<url::Url>,
+    pub code_challenge: Arc<str>,
 }
 
 pub(crate) const SESSION_COOKIE_NAME: &'static str = "sess";
 
 #[derive(Debug, Clone)]
 pub(crate) struct Session {
-    pub user_id: Box<str>,
-    pub email: Box<str>,
-    pub name: Box<str>,
-    pub picture: Option<Box<str>>,
-    pub scope: Box<str>,
-    pub google_access_token: Option<Box<str>>,
-    pub google_refresh_token: Option<Box<str>>,
+    pub user_id: Arc<str>,
+    pub email: Arc<str>,
+    pub name: Arc<str>,
+    pub picture: Option<Arc<str>>,
+    pub scope: Arc<str>,
+    pub google_access_token: Option<Arc<str>>,
+    pub google_refresh_token: Option<Arc<str>>,
     pub google_token_expiry: Option<chrono::DateTime<Utc>>,
 }
 
@@ -244,14 +245,15 @@ impl AsRef<str> for SimpleUuidBuf {
 
 #[derive(Debug)]
 pub(crate) struct AccessToken {
-    pub user_id: Box<str>,
-    pub email: Box<str>,
-    pub name: Box<str>,
-    pub picture: Option<Box<str>>,
-    pub scope: Box<str>,
+    pub user_id: Arc<str>,
+    pub email: Arc<str>,
+    pub name: Arc<str>,
+    pub picture: Option<Arc<str>>,
+    pub scope: Arc<str>,
     pub exp: chrono::DateTime<Utc>,
 }
 
+// references instead of Arc because this may come to/from redis
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct RefreshTokenDataView<'o> {
     pub user_id: &'o str,

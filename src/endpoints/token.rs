@@ -10,12 +10,12 @@ use axum::http::Response;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use base64::Engine;
-use chrono::Utc;
 use serde::Deserialize;
 use serde::Serialize;
 use sha2::Digest;
 use std::ops::Add;
 use std::sync::Arc;
+use chrono::Utc;
 
 const BASE64_ENGINE: base64::engine::GeneralPurpose =
     base64::engine::general_purpose::URL_SAFE_NO_PAD;
@@ -37,21 +37,21 @@ pub(crate) enum TokenExchangeBody {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct AccessTokenClaims {
+struct AccessTokenClaims<'o> {
     // subject
-    sub: Box<str>,
-    email: Box<str>,
-    name: Box<str>,
-    picture: Option<Box<str>>,
+    sub: &'o str,
+    email: &'o str,
+    name: &'o str,
+    picture: Option<&'o str>,
     // audience
-    aud: Box<str>,
+    aud: &'o str,
     // issuer
-    iss: Box<str>,
+    iss: &'o str,
     // issued at
     #[serde(with = "chrono::serde::ts_seconds")]
-    iat: chrono::DateTime<chrono::Utc>,
+    iat: chrono::DateTime<Utc>,
     #[serde(with = "chrono::serde::ts_seconds")]
-    exp: chrono::DateTime<chrono::Utc>,
+    exp: chrono::DateTime<Utc>,
 }
 
 #[axum_macros::debug_handler]
@@ -74,7 +74,7 @@ pub(crate) async fn get(
                 .with_status_code(StatusCode::BAD_REQUEST)?;
 
             if client_id.is_some_and(|i| &*auth_code.client_id != i)
-                || redirect_uri != auth_code.redirect_uri
+                || &redirect_uri != &*auth_code.redirect_uri
                 || code_verifier
                     != BASE64_ENGINE.encode(sha2::Sha256::digest(&*auth_code.code_challenge))
             {
@@ -88,7 +88,7 @@ pub(crate) async fn get(
             let access_token_id = uuid::Uuid::new_v4();
             let refresh_token_id = uuid::Uuid::new_v4();
 
-            let issued_at = chrono::Utc::now();
+            let issued_at = Utc::now();
 
             let access_token_expires_at = issued_at.add(state.access_token_ttl);
             let access_jwt = jsonwebtoken::encode(
@@ -98,12 +98,12 @@ pub(crate) async fn get(
                     h
                 },
                 &AccessTokenClaims {
-                    sub: auth_code.session.user_id.clone(),
-                    email: auth_code.session.email.clone(),
-                    name: auth_code.session.name.clone(),
-                    picture: auth_code.session.picture.clone(),
-                    aud: auth_code.client_id.clone(),
-                    iss: state.issuer.clone(),
+                    sub: &*auth_code.session.user_id,
+                    email: &*auth_code.session.email,
+                    name: &*auth_code.session.name,
+                    picture: auth_code.session.picture.as_deref(),
+                    aud: &auth_code.client_id,
+                    iss: &*state.issuer,
                     iat: issued_at,
                     exp: access_token_expires_at,
                 },
@@ -169,7 +169,7 @@ pub(crate) async fn get(
                 google_token_expiry: Option<chrono::DateTime<Utc>>,
             }
 
-            Ok(axum::Json(CodeGrant {
+            Ok(Json(CodeGrant {
                 token_type: "Bearer",
                 access_token: access_token_id,
                 id_token: &access_jwt,

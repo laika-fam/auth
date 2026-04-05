@@ -15,6 +15,8 @@ use axum::http::StatusCode;
 use axum::response::Response;
 use serde::Deserialize;
 use std::collections::HashSet;
+use std::sync::Arc;
+use crate::endpoints::callback::goog::redirect_url;
 
 struct ClientDef {}
 
@@ -37,11 +39,11 @@ enum PromptType {
 #[derive(Debug, Deserialize)]
 pub(crate) struct AuthorizeQuery {
     response_type: Box<str>,
-    client_id: Box<str>,
-    redirect_uri: url::Url,
-    scope: Box<str>,
-    state: Option<Box<str>>,
-    code_challenge: Box<str>,
+    client_id: Arc<str>,
+    redirect_uri: Arc<url::Url>,
+    scope: Arc<str>,
+    state: Option<Arc<str>>,
+    code_challenge: Arc<str>,
     code_challenge_method: Box<str>,
     prompt: Option<PromptType>,
 }
@@ -62,7 +64,7 @@ pub fn found_redirect(location: &str) -> Response {
 pub(crate) async fn get(
     State(state): State<AppState>,
     cookies: tower_cookies::Cookies,
-    Query(query): Query<AuthorizeQuery>,
+    Query(mut query): Query<AuthorizeQuery>,
 ) -> crate::Result<Response<axum::body::Body>> {
     if !(&*query.response_type == "code" && &*query.code_challenge_method == "S256") {
         return Err(anyhow!(EXTREMELY_LOUD_INCORRECT_BUZZER))
@@ -91,19 +93,19 @@ pub(crate) async fn get(
             .auth_codes
             .insert(
                 auth_code,
-                std::sync::Arc::new(AuthCode {
-                    session: std::sync::Arc::new(Session {
-                        scope: query.scope,
+                Arc::new(AuthCode {
+                    session: Arc::new(Session {
+                        scope: Arc::from(query.scope),
                         ..(*sess_state).clone()
                     }),
-                    client_id: query.client_id,
+                    client_id: query.client_id.clone(),
                     redirect_uri: query.redirect_uri.clone(),
-                    code_challenge: query.code_challenge,
+                    code_challenge: query.code_challenge.clone(),
                 }),
             )
             .await;
-
-        let mut ret = query.redirect_uri;
+        
+        let ret = Arc::make_mut(&mut query.redirect_uri);
         {
             let mut query_pairs = ret.query_pairs_mut();
             query_pairs.append_pair("code", SimpleUuidBuf::from(auth_code).as_ref());
@@ -116,7 +118,7 @@ pub(crate) async fn get(
     }
 
     if query.prompt == Some(PromptType::None) {
-        let mut ret = query.redirect_uri;
+        let ret = Arc::make_mut(&mut query.redirect_uri);
         {
             let mut query_pairs = ret.query_pairs_mut();
             query_pairs.append_pair("error", "login_required");
@@ -141,7 +143,7 @@ pub(crate) async fn get(
         };
         let id = uuid::Uuid::new_v4();
         state
-            .backing_oauth_state_ttl
+            .backing_oauth_states
             .insert(id, backing_state)
             .await;
         id.to_string()
