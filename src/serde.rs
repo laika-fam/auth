@@ -13,7 +13,6 @@ pub(crate) mod option_non_nil_uuid_simple {
         D: serde::Deserializer<'de>,
     {
         Ok(Option::<uuid::fmt::Simple>::deserialize(deserializer)?
-            .map(|u| uuid::NonNilUuid::try_from(u.into_uuid()).ok())
-            .flatten())
+            .and_then(|u| uuid::NonNilUuid::try_from(u.into_uuid()).ok()))
     }
 }

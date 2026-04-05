@@ -2,7 +2,7 @@ use crate::AppState;
 use axum::extract::State;
 use axum::http::HeaderValue;
 use axum::http::Response;
-use axum::response::IntoResponse;
+use axum::response::IntoResponse as _;
 use axum_extra::TypedHeader;
 use axum_extra::headers::Authorization;
 use axum_extra::headers::authorization::Bearer;
@@ -57,7 +57,7 @@ pub(crate) async fn get(
     }
 
     let mut r = axum::Json(&UserinfoResponse {
-        sub: &*access_token_stored.user_id,
+        sub: &access_token_stored.user_id,
         picture: access_token_stored.picture.as_deref(),
         name: scope_profile.then_some(&*access_token_stored.name),
         email: scope_email.then_some(&*access_token_stored.email),

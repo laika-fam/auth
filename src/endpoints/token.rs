@@ -258,7 +258,7 @@ pub(crate) async fn get(
                     )
                     .send()
                     .await
-                    .map(|r| r.error_for_status())
+                    .map(reqwest::Response::error_for_status)
                     && let Ok(goog_resp_parsed) =
                         goog_resp.json::<GoogleRefreshTokenGrantResponse>().await
                 {
@@ -272,7 +272,7 @@ pub(crate) async fn get(
                             .context("new duration from google-provided expires_in")?,
                         ),
                     );
-                };
+                }
             }
 
             let new_access_token_id = uuid::Uuid::new_v4();
