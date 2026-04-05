@@ -11,6 +11,7 @@ use crate::endpoints::callback;
 use crate::endpoints::jwks;
 use crate::endpoints::openid_config;
 use crate::endpoints::token;
+use crate::endpoints::userinfo;
 use crate::model::AccessToken;
 use crate::model::AuthCode;
 use crate::model::BackingOauthState;
@@ -150,6 +151,7 @@ async fn main() {
         .route("/authorize", get(authorize::get))
         .nest("/oauth/cb", callback::router())
         .route("/token", get(token::get))
+        .route("/userinfo", get(userinfo::get))
         .layer(tower_cookies::CookieManagerLayer::new())
         .with_state(app_state);
 

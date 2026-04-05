@@ -1,6 +1,5 @@
 use crate::AppState;
 use axum::extract::State;
-use axum::http::HeaderName;
 use axum::http::HeaderValue;
 use axum::response::IntoResponse as _;
 
@@ -31,7 +30,7 @@ pub(crate) async fn get(State(state): State<AppState>) -> axum::http::Response<a
     .into_response();
 
     r.headers_mut().insert(
-        const { HeaderName::from_static("cache-control") },
+        axum::http::header::CACHE_CONTROL,
         const { HeaderValue::from_static("no-store") },
     );
     r

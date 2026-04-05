@@ -6,7 +6,6 @@ use anyhow::Context as _;
 use anyhow::anyhow;
 use axum::Json;
 use axum::extract::State;
-use axum::http::HeaderName;
 use axum::http::HeaderValue;
 use axum::http::Response;
 use axum::http::StatusCode;
@@ -192,7 +191,7 @@ pub(crate) async fn get(
             .into_response();
 
             r.headers_mut().insert(
-                const { HeaderName::from_static("cache-control") },
+                axum::http::header::CACHE_CONTROL,
                 const { HeaderValue::from_static("no-store") },
             );
             Ok(r)
@@ -254,7 +253,7 @@ pub(crate) async fn get(
                         client_secret: &state.google_client_secret,
                     })
                     .header(
-                        const { HeaderName::from_static("content-type") },
+                        axum::http::header::CONTENT_TYPE,
                         const { HeaderValue::from_static("application/x-www-form-urlencoded") },
                     )
                     .send()
@@ -328,7 +327,7 @@ pub(crate) async fn get(
             .into_response();
 
             r.headers_mut().insert(
-                const { HeaderName::from_static("cache-control") },
+                axum::http::header::CACHE_CONTROL,
                 const { HeaderValue::from_static("no-store") },
             );
             Ok(r)

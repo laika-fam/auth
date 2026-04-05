@@ -50,7 +50,7 @@ pub(crate) struct AuthorizeQuery {
 pub fn found_redirect(location: &str) -> Response {
     Response::builder()
         .header(
-            const { axum::http::HeaderName::from_static("location") },
+            axum::http::header::LOCATION,
             // safety: url crate enforces no NUL
             unsafe { axum::http::HeaderValue::from_str(location).unwrap_unchecked() },
         )
