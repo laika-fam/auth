@@ -52,10 +52,10 @@ pub(super) async fn get(
         refresh_token: Arc<str>,
         // we don't yet deal with time-based access
         // https://developers.google.com/identity/protocols/oauth2/web-server#time-based-access
-        refresh_token_expires_in: u64,
-        scope: Box<str>,
+        // refresh_token_expires_in: u64,
+        // scope: Box<str>,
         // always Bearer, for now (https://developers.google.com/identity/protocols/oauth2/web-server)
-        token_type: Box<str>,
+        // token_type: Box<str>,
     }
 
     let got_tokens_at = chrono::Utc::now();
