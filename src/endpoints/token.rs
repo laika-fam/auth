@@ -1,20 +1,22 @@
-use crate::AppState;
 use crate::model::AccessToken;
 use crate::model::RefreshTokenDataView;
 use crate::model::WithStatusCode as _;
-use anyhow::Context as _;
+use crate::AppState;
 use anyhow::anyhow;
-use axum::Json;
+use anyhow::Context as _;
 use axum::extract::State;
+use axum::http::HeaderName;
+use axum::http::HeaderValue;
 use axum::http::Response;
 use axum::http::StatusCode;
 use axum::response::IntoResponse as _;
+use axum::Json;
 use base64::Engine as _;
 use chrono::Utc;
+use core::ops::Add as _;
 use serde::Deserialize;
 use serde::Serialize;
 use sha2::Digest as _;
-use core::ops::Add as _;
 use std::sync::Arc;
 
 const BASE64_ENGINE: base64::engine::GeneralPurpose =
@@ -169,7 +171,7 @@ pub(crate) async fn get(
                 google_token_expiry: Option<chrono::DateTime<Utc>>,
             }
 
-            Ok(Json(CodeGrant {
+            let mut r = Json(CodeGrant {
                 token_type: "Bearer",
                 access_token: access_token_id,
                 id_token: &access_jwt,
@@ -178,7 +180,13 @@ pub(crate) async fn get(
                 google_refresh_token: auth_code.session.google_refresh_token.as_deref(),
                 google_token_expiry: auth_code.session.google_token_expiry,
             })
-            .into_response())
+            .into_response();
+
+            r.headers_mut().insert(
+                const { HeaderName::from_static("cache-control") },
+                const { HeaderValue::from_static("no-store") },
+            );
+            Ok(r)
         }
         TokenExchangeBody::RefreshToken { .. } => {
             todo!()
