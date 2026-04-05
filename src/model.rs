@@ -1,15 +1,15 @@
-use std::sync::Arc;
-use anyhow::Context;
+use anyhow::Context as _;
 use axum::http::StatusCode;
 use chrono::Utc;
 use jsonwebkey::KeyUse;
 use jsonwebkey::RsaPrivate;
-use rand::SeedableRng;
-use rsa::traits::PrivateKeyParts;
-use rsa::traits::PublicKeyParts;
+use rand::SeedableRng as _;
+use rsa::traits::PrivateKeyParts as _;
+use rsa::traits::PublicKeyParts as _;
 use serde::Deserialize;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
+use std::sync::Arc;
 
 pub(crate) type Result<T> = core::result::Result<T, AnyhowBridge>;
 
@@ -145,8 +145,7 @@ impl Jwks {
             private: Some(RsaPrivate {
                 d: private_gen.d().to_be_bytes_trimmed_vartime().into(),
                 p: private_gen
-                    .primes()
-                    .get(0)
+                    .primes().first()
                     .map(|v| v.to_be_bytes_trimmed_vartime().into()),
                 q: private_gen
                     .primes()
@@ -209,7 +208,7 @@ pub(crate) struct AuthCode {
     pub code_challenge: Arc<str>,
 }
 
-pub(crate) const SESSION_COOKIE_NAME: &'static str = "sess";
+pub(crate) const SESSION_COOKIE_NAME: &str = "sess";
 
 #[derive(Debug, Clone)]
 pub(crate) struct Session {

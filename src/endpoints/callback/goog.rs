@@ -1,20 +1,20 @@
-use crate::endpoints::authorize::found_redirect;
-use crate::model::AuthCode;
-use crate::model::Session;
-use crate::model::SimpleUuidBuf;
-use crate::model::WithStatusCode;
-use crate::model::SESSION_COOKIE_NAME;
 use crate::AppState;
 use crate::EXTREMELY_LOUD_INCORRECT_BUZZER;
+use crate::endpoints::authorize::found_redirect;
+use crate::model::AuthCode;
+use crate::model::SESSION_COOKIE_NAME;
+use crate::model::Session;
+use crate::model::SimpleUuidBuf;
+use crate::model::WithStatusCode as _;
+use anyhow::Context as _;
 use anyhow::anyhow;
-use anyhow::Context;
 use axum::extract::OriginalUri;
 use axum::extract::Query;
 use axum::extract::State;
 use axum::http::Response;
 use axum::http::StatusCode;
 use serde::Deserialize;
-use std::ops::Add;
+use core::ops::Add as _;
 use std::sync::Arc;
 use tower_cookies::Cookie;
 
@@ -37,11 +37,11 @@ pub(super) async fn get(
     OriginalUri(uri): OriginalUri,
 ) -> crate::Result<Response<axum::body::Body>> {
     if query.error.is_some() {
-        return Err(anyhow!("google oauth died"))?;
+        return Err(anyhow!("google oauth died").into());
     }
 
     let Some((query_code, query_state)) = query.code.zip(query.state) else {
-        return Err(anyhow!(EXTREMELY_LOUD_INCORRECT_BUZZER))?;
+        return Err(anyhow!(EXTREMELY_LOUD_INCORRECT_BUZZER).into());
     };
 
     // https://github.com/laggycomputer/pushflow

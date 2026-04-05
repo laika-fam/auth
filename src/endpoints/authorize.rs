@@ -16,7 +16,6 @@ use axum::response::Response;
 use serde::Deserialize;
 use std::collections::HashSet;
 use std::sync::Arc;
-use crate::endpoints::callback::goog::redirect_url;
 
 struct ClientDef {}
 
@@ -95,7 +94,7 @@ pub(crate) async fn get(
                 auth_code,
                 Arc::new(AuthCode {
                     session: Arc::new(Session {
-                        scope: Arc::from(query.scope),
+                        scope: query.scope,
                         ..(*sess_state).clone()
                     }),
                     client_id: query.client_id.clone(),
@@ -104,7 +103,7 @@ pub(crate) async fn get(
                 }),
             )
             .await;
-        
+
         let ret = Arc::make_mut(&mut query.redirect_uri);
         {
             let mut query_pairs = ret.query_pairs_mut();
@@ -136,16 +135,13 @@ pub(crate) async fn get(
     let state_id = {
         let backing_state = BackingOauthState {
             client_id: query.client_id,
-            redirect_uri: query.redirect_uri.into(),
+            redirect_uri: query.redirect_uri,
             state: query.state,
             code_challenge: query.code_challenge,
             scope: query.scope.clone(),
         };
         let id = uuid::Uuid::new_v4();
-        state
-            .backing_oauth_states
-            .insert(id, backing_state)
-            .await;
+        state.backing_oauth_states.insert(id, backing_state).await;
         id.to_string()
     };
     {

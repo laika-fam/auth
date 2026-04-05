@@ -15,13 +15,13 @@ use crate::model::AuthCode;
 use crate::model::BackingOauthState;
 use crate::model::Jwks;
 use crate::model::Session;
-use crate::model::ToFromAws;
+use crate::model::ToFromAws as _;
 use axum::Router;
 use axum::routing::get;
 use core::ops::Deref;
-use std::fmt::Debug;
-use std::net::Ipv6Addr;
-use std::str::FromStr;
+use core::fmt::Debug;
+use core::net::Ipv6Addr;
+use core::str::FromStr;
 use std::sync::Arc;
 
 pub(crate) const EXTREMELY_LOUD_INCORRECT_BUZZER: &str = "[\u{1d404}\u{1d417}\u{1d413}\u{1d411}\u{1d404}\u{1d40c}\u{1d404}\u{1d40b}\u{1d418} \u{1d40b}\u{1d40e}\u{1d414}\u{1d403} \u{1d408}\u{1d40d}\u{1d402}\u{1d40e}\u{1d411}\u{1d411}\u{1d404}\u{1d402}\u{1d413} \u{1d401}\u{1d414}\u{1d419}\u{1d419}\u{1d404}\u{1d411}]";
@@ -38,14 +38,14 @@ struct AppStateInner {
     // if more providers, split this up
     pub backing_oauth_states: MokaKV<uuid::Uuid, BackingOauthState>,
     pub sessions: MokaKV<uuid::Uuid, Arc<Session>>,
-    pub session_ttl: std::time::Duration,
+    pub session_ttl: core::time::Duration,
     pub google_client_id: Box<str>,
     pub google_client_secret: Box<str>,
     pub auth_codes: MokaKV<uuid::Uuid, Arc<AuthCode>>,
     pub access_tokens: MokaKV<uuid::Uuid, Arc<AccessToken>>,
-    pub access_token_ttl: std::time::Duration,
+    pub access_token_ttl: core::time::Duration,
     // refresh tokens in redis
-    pub refresh_token_ttl: std::time::Duration,
+    pub refresh_token_ttl: core::time::Duration,
     pub redis: redis::Client,
 }
 
@@ -55,9 +55,9 @@ where
     <T as FromStr>::Err: Debug,
 {
     std::env::var(var)
-        .expect(&format!("need ${var}"))
+        .unwrap_or_else(|_| panic!("need ${var}"))
         .parse()
-        .expect(&format!("malformed ${var}"))
+        .unwrap_or_else(|_| panic!("malformed ${var}"))
 }
 
 impl AppState {
@@ -74,17 +74,17 @@ impl AppState {
                     eprintln!(
                         "warning: couldn't save newly generated keys; they will not persist!"
                     );
-                };
+                }
                 keys
             }
         } else {
             eprintln!("warning: no mount path; keys will not persist!");
-            let keys = Jwks::new().await;
-            keys
+            
+            Jwks::new().await
         };
 
-        let session_ttl = std::time::Duration::from_secs(assert_var("SESSION_TTL"));
-        let access_token_ttl = std::time::Duration::from_secs(assert_var("ACCESS_TOKEN_TTL"));
+        let session_ttl = core::time::Duration::from_secs(assert_var("SESSION_TTL"));
+        let access_token_ttl = core::time::Duration::from_secs(assert_var("ACCESS_TOKEN_TTL"));
 
         Self(Arc::new(AppStateInner {
             http: reqwest::Client::new(),
@@ -93,7 +93,7 @@ impl AppState {
             backing_oauth_states: moka::future::Cache::builder()
                 .max_capacity(10_000)
                 .initial_capacity(100)
-                .time_to_live(std::time::Duration::from_secs(assert_var(
+                .time_to_live(core::time::Duration::from_secs(assert_var(
                     "BACKING_OAUTH_STATE_TTL",
                 )))
                 .build(),
@@ -108,7 +108,7 @@ impl AppState {
             auth_codes: moka::future::Cache::builder()
                 .max_capacity(10_000)
                 .initial_capacity(100)
-                .time_to_live(std::time::Duration::from_secs(assert_var("AUTH_CODE_TTL")))
+                .time_to_live(core::time::Duration::from_secs(assert_var("AUTH_CODE_TTL")))
                 .build(),
             access_tokens: moka::future::Cache::builder()
                 .max_capacity(10_000)
@@ -116,7 +116,7 @@ impl AppState {
                 .time_to_live(access_token_ttl)
                 .build(),
             access_token_ttl,
-            refresh_token_ttl: std::time::Duration::from_secs(assert_var("REFRESH_TOKEN_TTL")),
+            refresh_token_ttl: core::time::Duration::from_secs(assert_var("REFRESH_TOKEN_TTL")),
             redis: redis::Client::open(assert_var::<String>("REDIS_URL"))
                 .expect("connect to redis"),
         }))

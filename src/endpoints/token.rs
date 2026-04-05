@@ -1,21 +1,21 @@
 use crate::AppState;
 use crate::model::AccessToken;
 use crate::model::RefreshTokenDataView;
-use crate::model::WithStatusCode;
-use anyhow::Context;
+use crate::model::WithStatusCode as _;
+use anyhow::Context as _;
 use anyhow::anyhow;
 use axum::Json;
 use axum::extract::State;
 use axum::http::Response;
 use axum::http::StatusCode;
-use axum::response::IntoResponse;
-use base64::Engine;
+use axum::response::IntoResponse as _;
+use base64::Engine as _;
+use chrono::Utc;
 use serde::Deserialize;
 use serde::Serialize;
-use sha2::Digest;
-use std::ops::Add;
+use sha2::Digest as _;
+use core::ops::Add as _;
 use std::sync::Arc;
-use chrono::Utc;
 
 const BASE64_ENGINE: base64::engine::GeneralPurpose =
     base64::engine::general_purpose::URL_SAFE_NO_PAD;
@@ -73,8 +73,8 @@ pub(crate) async fn get(
                 .context("bad auth code")
                 .with_status_code(StatusCode::BAD_REQUEST)?;
 
-            if client_id.is_some_and(|i| &*auth_code.client_id != i)
-                || &redirect_uri != &*auth_code.redirect_uri
+            if client_id.is_some_and(|i| *auth_code.client_id != i)
+                || redirect_uri != *auth_code.redirect_uri
                 || code_verifier
                     != BASE64_ENGINE.encode(sha2::Sha256::digest(&*auth_code.code_challenge))
             {
@@ -98,12 +98,12 @@ pub(crate) async fn get(
                     h
                 },
                 &AccessTokenClaims {
-                    sub: &*auth_code.session.user_id,
-                    email: &*auth_code.session.email,
-                    name: &*auth_code.session.name,
+                    sub: &auth_code.session.user_id,
+                    email: &auth_code.session.email,
+                    name: &auth_code.session.name,
                     picture: auth_code.session.picture.as_deref(),
                     aud: &auth_code.client_id,
-                    iss: &*state.issuer,
+                    iss: &state.issuer,
                     iat: issued_at,
                     exp: access_token_expires_at,
                 },
@@ -138,12 +138,12 @@ pub(crate) async fn get(
                     refresh_token_id,
                     "$",
                     &RefreshTokenDataView {
-                        user_id: &*auth_code.session.user_id,
-                        email: &*auth_code.session.email,
-                        name: &*auth_code.session.name,
+                        user_id: &auth_code.session.user_id,
+                        email: &auth_code.session.email,
+                        name: &auth_code.session.name,
                         picture: auth_code.session.picture.as_deref(),
                         client_id: &auth_code.client_id,
-                        scope: &*auth_code.session.scope,
+                        scope: &auth_code.session.scope,
                         google_refresh_token: auth_code.session.google_refresh_token.as_deref(),
                     },
                 )
