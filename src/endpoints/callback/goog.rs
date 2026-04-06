@@ -1,13 +1,13 @@
+use crate::AppState;
+use crate::EXTREMELY_LOUD_INCORRECT_BUZZER;
 use crate::endpoints::authorize::found_redirect;
 use crate::model::AuthCode;
+use crate::model::SESSION_COOKIE_NAME;
 use crate::model::Session;
 use crate::model::SimpleUuidBuf;
 use crate::model::WithStatusCode as _;
-use crate::model::SESSION_COOKIE_NAME;
-use crate::AppState;
-use crate::EXTREMELY_LOUD_INCORRECT_BUZZER;
-use anyhow::anyhow;
 use anyhow::Context as _;
+use anyhow::anyhow;
 use axum::extract::OriginalUri;
 use axum::extract::Query;
 use axum::extract::State;

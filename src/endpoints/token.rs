@@ -4,7 +4,8 @@ use crate::model::RefreshTokenDataView;
 use crate::model::WithStatusCode as _;
 use anyhow::Context as _;
 use anyhow::anyhow;
-use axum::{Form, Json};
+use axum::Form;
+use axum::Json;
 use axum::extract::State;
 use axum::http::HeaderValue;
 use axum::http::Response;
@@ -95,8 +96,8 @@ pub(crate) async fn post(
 
             if client_id.is_some_and(|i| *auth_code.client_id != *i)
                 || redirect_uri != *auth_code.redirect_uri
-                || *code_verifier
-                    != BASE64_ENGINE.encode(sha2::Sha256::digest(&*auth_code.code_challenge))
+                || *auth_code.code_challenge
+                    != BASE64_ENGINE.encode(sha2::Sha256::digest(&*code_verifier))
             {
                 return Err(anyhow!("bad auth code")).with_status_code(StatusCode::BAD_REQUEST)?;
             }
@@ -152,30 +153,23 @@ pub(crate) async fn post(
                 .await
                 .context("acquire redis")?;
 
-            redis::pipe()
-                .atomic()
-                .json_set(
-                    refresh_token_id,
-                    "$",
-                    &RefreshTokenDataView {
-                        user_id: &auth_code.session.user_id,
-                        email: &auth_code.session.email,
-                        name: &auth_code.session.name,
-                        picture: auth_code.session.picture.as_deref(),
-                        client_id: &auth_code.client_id,
-                        scope: &auth_code.session.scope,
-                        google_refresh_token: auth_code.session.google_refresh_token.as_deref(),
-                    },
-                )
-                .context("serialize refresh token data")?
-                .ignore()
-                .expire(
-                    refresh_token_id,
-                    state.refresh_token_ttl.as_secs().cast_signed(),
-                )
-                .exec_async(&mut redis)
-                .await
-                .context("EXPIRE refresh token")?;
+            redis::AsyncTypedCommands::set_ex(
+                &mut redis,
+                refresh_token_id,
+                serde_json::to_string(&RefreshTokenDataView {
+                    user_id: &auth_code.session.user_id,
+                    email: &auth_code.session.email,
+                    name: &auth_code.session.name,
+                    picture: auth_code.session.picture.as_deref(),
+                    client_id: &auth_code.client_id,
+                    scope: &auth_code.session.scope,
+                    google_refresh_token: auth_code.session.google_refresh_token.as_deref(),
+                })
+                .context("refresh token data to json")?,
+                state.refresh_token_ttl.as_secs(),
+            )
+            .await
+            .context("SETEX refresh token")?;
 
             let mut r = Json(CodeGrant {
                 token_type: "Bearer",
