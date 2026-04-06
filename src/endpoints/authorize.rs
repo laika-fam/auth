@@ -17,15 +17,20 @@ use serde::Deserialize;
 use std::collections::HashSet;
 use std::sync::Arc;
 
-struct ClientDef {}
+struct ClientDef {
+    redirect_uris: &'static [&'static str],
+}
 
 static CLIENTS: phf::Map<&'static str, ClientDef> = phf::phf_map! {
-    "test" => ClientDef {},
+    "https://open.spotify.com/track/0X5mtNbqxbiTYkwj0CQc2f" => ClientDef {
+        redirect_uris: &["http://localhost:4321/api/auth/callback/oauth2"],
+    },
 };
 
-fn allowed(client_id: &str, _redirect_url: &str) -> bool {
-    // TODO: check redirect
-    CLIENTS.contains_key(client_id)
+fn allowed(client_id: &str, redirect_url: &str) -> bool {
+    CLIENTS
+        .get(client_id)
+        .is_some_and(|client| client.redirect_uris.contains(&redirect_url))
 }
 
 #[derive(Debug, Deserialize, Copy, Clone, Hash, PartialEq, Eq)]
