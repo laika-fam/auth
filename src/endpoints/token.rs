@@ -4,7 +4,7 @@ use crate::model::RefreshTokenDataView;
 use crate::model::WithStatusCode as _;
 use anyhow::Context as _;
 use anyhow::anyhow;
-use axum::Json;
+use axum::{Form, Json};
 use axum::extract::State;
 use axum::http::HeaderValue;
 use axum::http::Response;
@@ -59,9 +59,9 @@ struct AccessTokenClaims<'o> {
 }
 
 #[axum_macros::debug_handler]
-pub(crate) async fn get(
+pub(crate) async fn post(
     State(state): State<AppState>,
-    Json(body): Json<TokenExchangeBody>,
+    Form(body): Form<TokenExchangeBody>,
 ) -> crate::Result<Response<axum::body::Body>> {
     #[derive(Debug, Serialize)]
     struct CodeGrant<'o> {

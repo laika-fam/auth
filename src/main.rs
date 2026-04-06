@@ -19,7 +19,7 @@ use crate::model::Jwks;
 use crate::model::Session;
 use crate::model::ToFromAws as _;
 use axum::Router;
-use axum::routing::get;
+use axum::routing::{get, post};
 use core::fmt::Debug;
 use core::net::Ipv6Addr;
 use core::ops::Deref;
@@ -151,7 +151,7 @@ async fn main() {
         .route("/jwks.json", get(jwks::get))
         .route("/authorize", get(authorize::get))
         .nest("/oauth/cb", callback::router())
-        .route("/token", get(token::get))
+        .route("/token", post(token::post))
         .route("/userinfo", get(userinfo::get))
         .layer(tower_cookies::CookieManagerLayer::new())
         .with_state(app_state);
