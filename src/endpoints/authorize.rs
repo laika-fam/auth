@@ -153,7 +153,7 @@ pub(crate) async fn get(
         query_pairs.append_pair("scope", &query.scope);
         query_pairs.append_pair("access_type", "offline");
         query_pairs.append_pair("state", &state_id);
-        query_pairs.append_pair("prompt", "select_account");
+        query_pairs.append_pair("prompt", "consent");
         query_pairs.append_pair("hl", "en-GB");
     }
 
