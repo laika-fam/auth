@@ -1,13 +1,13 @@
-use crate::AppState;
-use crate::EXTREMELY_LOUD_INCORRECT_BUZZER;
 use crate::endpoints::authorize::found_redirect;
 use crate::model::AuthCode;
-use crate::model::SESSION_COOKIE_NAME;
 use crate::model::Session;
 use crate::model::SimpleUuidBuf;
 use crate::model::WithStatusCode as _;
-use anyhow::Context as _;
+use crate::model::SESSION_COOKIE_NAME;
+use crate::AppState;
+use crate::EXTREMELY_LOUD_INCORRECT_BUZZER;
 use anyhow::anyhow;
+use anyhow::Context as _;
 use axum::extract::OriginalUri;
 use axum::extract::Query;
 use axum::extract::State;
@@ -23,10 +23,10 @@ pub(crate) fn redirect_url(state: &AppState) -> String {
 }
 
 #[derive(Debug, Deserialize)]
-pub(crate) struct GoogQuery {
-    code: Option<uuid::Uuid>,
-    state: Option<Box<str>>,
-    error: Option<Box<str>>,
+#[serde(untagged)]
+pub(crate) enum GoogQuery {
+    Error { error: Box<str> },
+    Ok { code: Box<str>, state: uuid::Uuid },
 }
 
 #[axum_macros::debug_handler]
@@ -36,12 +36,12 @@ pub(super) async fn get(
     Query(query): Query<GoogQuery>,
     OriginalUri(uri): OriginalUri,
 ) -> crate::Result<Response<axum::body::Body>> {
-    if query.error.is_some() {
+    let GoogQuery::Ok {
+        code: query_code,
+        state: query_state,
+    } = query
+    else {
         return Err(anyhow!("google oauth died").into());
-    }
-
-    let Some((query_code, query_state)) = query.code.zip(query.state) else {
-        return Err(anyhow!(EXTREMELY_LOUD_INCORRECT_BUZZER).into());
     };
 
     // https://github.com/laggycomputer/pushflow
@@ -66,7 +66,7 @@ pub(super) async fn get(
         .post("https://oauth2.googleapis.com/token")
         .form(&[
             // silently enforces that state has to be in this format, not any UUID, which is fine
-            ("code", SimpleUuidBuf::from(query_code).as_ref()),
+            ("code", &*query_code),
             ("client_id", &state.google_client_id),
             ("client_secret", &state.google_client_secret),
             ("redirect_uri", &redirect_url(&state)),
@@ -83,12 +83,10 @@ pub(super) async fn get(
     // before we destroy our own data
     let mut backing_state = state
         .backing_oauth_states
-        .remove(&query_code)
+        .remove(&query_state)
         .await
         .context(EXTREMELY_LOUD_INCORRECT_BUZZER)
         .with_status_code(StatusCode::BAD_REQUEST)?;
-
-    drop(query_state);
 
     // https://openid.net/specs/openid-connect-core-1_0.html#UserInfoResponse
     #[derive(Debug, Deserialize)]
