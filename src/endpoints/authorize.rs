@@ -23,7 +23,7 @@ struct ClientDef {
 
 static CLIENTS: phf::Map<&'static str, ClientDef> = phf::phf_map! {
     "https://open.spotify.com/track/0X5mtNbqxbiTYkwj0CQc2f" => ClientDef {
-        redirect_uris: &["http://localhost:4321/api/auth/callback/oauth2"],
+        redirect_uris: &["http://localhost:4321/api/auth/oauth2/callback/laggy.computer"],
     },
 };
 
