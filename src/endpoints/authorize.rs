@@ -148,11 +148,11 @@ pub(crate) async fn get(
     {
         let mut query_pairs = url.query_pairs_mut();
         query_pairs.append_pair("client_id", &state.google_client_id);
-        query_pairs.append_pair("response_type", "code");
         query_pairs.append_pair("redirect_uri", &goog::redirect_url(&state));
+        query_pairs.append_pair("response_type", "code");
         query_pairs.append_pair("scope", &query.scope);
-        query_pairs.append_pair("state", &state_id);
         query_pairs.append_pair("access_type", "offline");
+        query_pairs.append_pair("state", &state_id);
         query_pairs.append_pair("prompt", "select_account");
         query_pairs.append_pair("hl", "en-GB");
     }
