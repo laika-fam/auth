@@ -30,13 +30,13 @@ pub(crate) enum TokenExchangeBody {
         #[serde(with = "uuid::serde::simple")]
         code: uuid::Uuid,
         redirect_uri: url::Url,
-        client_id: Option<String>,
-        code_verifier: String,
+        client_id: Option<Box<str>>,
+        code_verifier: Box<str>,
     },
     RefreshToken {
         #[serde(with = "uuid::serde::simple")]
         refresh_token: uuid::Uuid,
-        client_id: Option<String>,
+        client_id: Option<Box<str>>,
     },
 }
 
@@ -93,9 +93,9 @@ pub(crate) async fn get(
                 .context("bad auth code")
                 .with_status_code(StatusCode::BAD_REQUEST)?;
 
-            if client_id.is_some_and(|i| *auth_code.client_id != i)
+            if client_id.is_some_and(|i| *auth_code.client_id != *i)
                 || redirect_uri != *auth_code.redirect_uri
-                || code_verifier
+                || *code_verifier
                     != BASE64_ENGINE.encode(sha2::Sha256::digest(&*auth_code.code_challenge))
             {
                 return Err(anyhow!("bad auth code")).with_status_code(StatusCode::BAD_REQUEST)?;
@@ -219,7 +219,7 @@ pub(crate) async fn get(
                 serde_json::from_slice::<RefreshTokenDataView<'_>>(&(refresh_token_stored_bytes))
                     .with_status_code(StatusCode::BAD_REQUEST)?;
 
-            if client_id.is_some_and(|c| refresh_token_stored.client_id != c) {
+            if client_id.is_some_and(|c| refresh_token_stored.client_id != &*c) {
                 return Err(anyhow!("no")).with_status_code(StatusCode::BAD_REQUEST);
             }
 

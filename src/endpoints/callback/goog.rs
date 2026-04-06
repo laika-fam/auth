@@ -25,8 +25,8 @@ pub(crate) fn redirect_url(state: &AppState) -> String {
 #[derive(Debug, Deserialize)]
 pub(crate) struct GoogQuery {
     code: Option<uuid::Uuid>,
-    state: Option<String>,
-    error: Option<String>,
+    state: Option<Box<str>>,
+    error: Option<Box<str>>,
 }
 
 #[axum_macros::debug_handler]
