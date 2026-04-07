@@ -3,6 +3,7 @@
 mod endpoints;
 mod model;
 mod serde;
+mod db;
 
 pub(crate) use model::Result;
 
@@ -18,13 +19,16 @@ use crate::model::BackingOauthState;
 use crate::model::Jwks;
 use crate::model::Session;
 use crate::model::ToFromAws as _;
-use axum::Router;
 use axum::routing::get;
 use axum::routing::post;
+use axum::Router;
 use core::fmt::Debug;
 use core::net::Ipv6Addr;
 use core::ops::Deref;
 use core::str::FromStr;
+use diesel_async::pooled_connection::deadpool::Pool;
+use diesel_async::pooled_connection::AsyncDieselConnectionManager;
+use diesel_async::AsyncPgConnection;
 use std::sync::Arc;
 
 pub(crate) const EXTREMELY_LOUD_INCORRECT_BUZZER: &str = "[\u{1d404}\u{1d417}\u{1d413}\u{1d411}\u{1d404}\u{1d40c}\u{1d404}\u{1d40b}\u{1d418} \u{1d40b}\u{1d40e}\u{1d414}\u{1d403} \u{1d408}\u{1d40d}\u{1d402}\u{1d40e}\u{1d411}\u{1d411}\u{1d404}\u{1d402}\u{1d413} \u{1d401}\u{1d414}\u{1d419}\u{1d419}\u{1d404}\u{1d411}]";
@@ -47,9 +51,9 @@ struct AppStateInner {
     pub auth_codes: MokaKV<uuid::Uuid, Arc<AuthCode>>,
     pub access_tokens: MokaKV<uuid::Uuid, Arc<AccessToken>>,
     pub access_token_ttl: core::time::Duration,
-    // refresh tokens in redis
+    // refresh tokens in db
     pub refresh_token_ttl: core::time::Duration,
-    pub redis: redis::Client,
+    pub db_pool: Pool<AsyncPgConnection>,
 }
 
 fn assert_var<T>(var: &str) -> T
@@ -120,9 +124,12 @@ impl AppState {
                 .build(),
             access_token_ttl,
             refresh_token_ttl: core::time::Duration::from_secs(assert_var("REFRESH_TOKEN_TTL")),
-            #[expect(clippy::expect_used, reason = "we can crash if setup fails")]
-            redis: redis::Client::open(assert_var::<String>("REDIS_URL"))
-                .expect("connect to redis"),
+            db_pool: {
+                let db_url = assert_var::<String>("DATABASE_URL");
+                let config = AsyncDieselConnectionManager::<AsyncPgConnection>::new(&db_url);
+                #[expect(clippy::unwrap_used, reason = "we can crash if setup fails")]
+                Pool::builder(config).build().unwrap()
+            },
         }))
     }
 }

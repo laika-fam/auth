@@ -1,14 +1,17 @@
 use anyhow::Context as _;
 use axum::http::StatusCode;
 use chrono::Utc;
+use diesel::HasQuery;
+use diesel::Insertable;
+use diesel::Selectable;
 use jsonwebkey::KeyUse;
 use jsonwebkey::RsaPrivate;
 use rand::SeedableRng as _;
 use rsa::traits::PrivateKeyParts as _;
 use rsa::traits::PublicKeyParts as _;
+use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde::Serialize;
-use serde::de::DeserializeOwned;
 use std::sync::Arc;
 
 pub(crate) type Result<T> = core::result::Result<T, AnyhowBridge>;
@@ -261,8 +264,9 @@ pub(crate) struct AccessToken {
 }
 
 // references instead of Arc because this may come to/from redis
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct RefreshTokenDataView<'o> {
+#[derive(Debug, Insertable)]
+#[diesel(table_name = crate::db::schema::refresh_token)]
+pub(crate) struct RefreshTokenInsert<'o> {
     pub user_id: &'o str,
     pub email: &'o str,
     pub name: &'o str,
@@ -270,4 +274,18 @@ pub(crate) struct RefreshTokenDataView<'o> {
     pub client_id: &'o str,
     pub scope: &'o str,
     pub google_refresh_token: Option<&'o str>,
+    pub expires: chrono::DateTime<Utc>,
+}
+
+#[derive(Debug, HasQuery)]
+#[diesel(table_name = crate::db::schema::refresh_token)]
+pub(crate) struct RefreshTokenSelect {
+    pub user_id: String,
+    pub email: String,
+    pub name: String,
+    pub picture: Option<String>,
+    pub client_id: String,
+    pub scope: String,
+    pub google_refresh_token: Option<String>,
+    pub expires: chrono::DateTime<Utc>,
 }

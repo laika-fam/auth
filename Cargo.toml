@@ -15,15 +15,16 @@ axum-extra = { version = "^0.12", features = ["typed-header"] }
 axum-macros = "^0.5"
 base64 = "^0.22"
 chrono = { version = "^0.4", features = ["serde"] }
+diesel = { version = "^2.3", features = ["postgres", "chrono", "serde_json", "uuid"] }
+diesel-async = { version = "^0.8", features = ["deadpool", "postgres"] }
 jsonwebkey = { version = "^0.4", features = ["jwt-convert"] }
 jsonwebtoken = "^10.3"
 moka = { version = "^0.12", features = ["future"] }
 phf = { version = "0.13.1", features = ["macros"] }
 rand = { version = "^0.10", features = ["chacha", "sys_rng"] }
-redis = { version = "^1.1", features = ["json", "tokio-comp", "uuid"] }
 reqwest = { version = "^0.13", features = ["query", "json", "form"] }
 rsa = "^0.10.0-rc.17"
-serde = { version = "1.0.228", features = ["derive", "rc"] }
+serde = { version = "^1", features = ["derive", "rc"] }
 serde_json = "^1"
 sha2 = "^0.11"
 time = "^0.3"

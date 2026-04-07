@@ -1,20 +1,24 @@
-use crate::AppState;
+use crate::db::schema::refresh_token;
 use crate::model::AccessToken;
-use crate::model::RefreshTokenDataView;
+use crate::model::RefreshTokenInsert;
+use crate::model::RefreshTokenSelect;
 use crate::model::WithStatusCode as _;
-use anyhow::Context as _;
+use crate::AppState;
 use anyhow::anyhow;
-use axum::Form;
-use axum::Json;
+use anyhow::Context as _;
 use axum::extract::State;
 use axum::http::HeaderValue;
 use axum::http::Response;
 use axum::http::StatusCode;
 use axum::response::IntoResponse as _;
+use axum::Form;
+use axum::Json;
 use base64::Engine as _;
 use chrono::Utc;
 use core::ops::Add as _;
-use redis::AsyncCommands;
+use diesel::ExpressionMethods as _;
+use diesel::{QueryDsl as _, SelectableHelper as _};
+use diesel_async::RunQueryDsl as _;
 use serde::Deserialize;
 use serde::Serialize;
 use sha2::Digest as _;
@@ -147,29 +151,24 @@ pub(crate) async fn post(
                 )
                 .await;
 
-            let mut redis = state
-                .redis
-                .get_multiplexed_async_connection()
-                .await
-                .context("acquire redis")?;
-
-            redis::AsyncTypedCommands::set_ex(
-                &mut redis,
-                refresh_token_id,
-                serde_json::to_string(&RefreshTokenDataView {
-                    user_id: &auth_code.session.user_id,
-                    email: &auth_code.session.email,
-                    name: &auth_code.session.name,
-                    picture: auth_code.session.picture.as_deref(),
-                    client_id: &auth_code.client_id,
-                    scope: &auth_code.session.scope,
-                    google_refresh_token: auth_code.session.google_refresh_token.as_deref(),
-                })
-                .context("refresh token data to json")?,
-                state.refresh_token_ttl.as_secs(),
-            )
-            .await
-            .context("SETEX refresh token")?;
+            let refresh_token_id: uuid::Uuid = {
+                let mut db = state.db_pool.get().await.context("acquire db")?;
+                diesel::insert_into(refresh_token::table)
+                    .values(RefreshTokenInsert {
+                        user_id: &auth_code.session.user_id,
+                        email: &auth_code.session.email,
+                        name: &auth_code.session.name,
+                        picture: auth_code.session.picture.as_deref(),
+                        client_id: &auth_code.client_id,
+                        scope: &auth_code.session.scope,
+                        google_refresh_token: auth_code.session.google_refresh_token.as_deref(),
+                        expires: Utc::now().add(state.refresh_token_ttl),
+                    })
+                    .returning(refresh_token::id)
+                    .get_result(&mut db)
+                    .await
+                    .context("store refresh token")?
+            };
 
             let mut r = Json(CodeGrant {
                 token_type: "Bearer",
@@ -194,24 +193,15 @@ pub(crate) async fn post(
             refresh_token,
             client_id,
         } => {
-            let mut redis = state
-                .redis
-                .get_multiplexed_async_connection()
-                .await
-                .context("acquire redis")?;
-
-            let refresh_token_stored_bytes =
-                <redis::aio::MultiplexedConnection as AsyncCommands>::get::<_, Vec<u8>>(
-                    &mut redis,
-                    refresh_token,
-                )
-                .await
-                .context("bad refresh token")
-                .with_status_code(StatusCode::BAD_REQUEST)?;
-
-            let refresh_token_stored =
-                serde_json::from_slice::<RefreshTokenDataView<'_>>(&(refresh_token_stored_bytes))
-                    .with_status_code(StatusCode::BAD_REQUEST)?;
+            let refresh_token_stored = {
+                let mut db = state.db_pool.get().await.context("acquire db")?;
+                refresh_token::table
+                    .select(RefreshTokenSelect::as_select())
+                    .filter(refresh_token::id.eq(refresh_token))
+                    .first::<RefreshTokenSelect>(&mut db)
+                    .await
+                    .context("refresh token details")?
+            };
 
             if client_id.is_some_and(|c| refresh_token_stored.client_id != &*c) {
                 return Err(anyhow!("no")).with_status_code(StatusCode::BAD_REQUEST);
@@ -220,7 +210,7 @@ pub(crate) async fn post(
             let mut new_google_access_token = None::<Arc<str>>;
             let mut new_google_token_expiry = None::<chrono::DateTime<Utc>>;
 
-            if let Some(refresh_token) = refresh_token_stored.google_refresh_token {
+            if let Some(ref google_refresh_token) = refresh_token_stored.google_refresh_token {
                 #[derive(Debug, Serialize)]
                 struct RefreshGrantBody<'o> {
                     grant_type: &'static str,
@@ -242,7 +232,7 @@ pub(crate) async fn post(
                     .post("https://oauth2.googleapis.com/token")
                     .json(&RefreshGrantBody {
                         grant_type: "refresh_token",
-                        refresh_token,
+                        refresh_token: &google_refresh_token,
                         client_id: &state.google_client_id,
                         client_secret: &state.google_client_secret,
                     })
@@ -280,11 +270,11 @@ pub(crate) async fn post(
                     h
                 },
                 &AccessTokenClaims {
-                    sub: refresh_token_stored.user_id,
-                    email: refresh_token_stored.email,
-                    name: refresh_token_stored.name,
-                    picture: refresh_token_stored.picture,
-                    aud: refresh_token_stored.client_id,
+                    sub: &refresh_token_stored.user_id,
+                    email: &refresh_token_stored.email,
+                    name: &refresh_token_stored.name,
+                    picture: refresh_token_stored.picture.as_deref(),
+                    aud: &refresh_token_stored.client_id,
                     iss: &state.issuer,
                     iat: issued_at,
                     exp: access_token_expires_at,
@@ -315,7 +305,7 @@ pub(crate) async fn post(
                 id_token: &access_jwt,
                 expires_in: state.access_token_ttl.as_secs(),
                 google_access_token: new_google_access_token.as_deref(),
-                google_refresh_token: refresh_token_stored.google_refresh_token,
+                google_refresh_token: refresh_token_stored.google_refresh_token.as_deref(),
                 google_token_expiry: new_google_token_expiry,
             })
             .into_response();
