@@ -9,7 +9,7 @@ publish = false
 [dependencies]
 anyhow = "^1"
 aws-config = "^1.8"
-aws-sdk-s3 = "^1.127"
+aws-sdk-s3 = "^1.129"
 axum = { version = "^0.8", features = ["json", "query"] }
 axum-extra = { version = "^0.12", features = ["typed-header"] }
 axum-macros = "^0.5"
@@ -20,7 +20,7 @@ diesel-async = { version = "^0.8", features = ["deadpool", "postgres"] }
 jsonwebkey = { version = "^0.4", features = ["jwt-convert"] }
 jsonwebtoken = "^10.3"
 moka = { version = "^0.12", features = ["future"] }
-phf = { version = "0.13.1", features = ["macros"] }
+phf = { version = "^0.13", features = ["macros"] }
 rand = { version = "^0.10", features = ["chacha", "sys_rng"] }
 reqwest = { version = "^0.13", features = ["query", "json", "form"] }
 rsa = "^0.10.0-rc.17"
@@ -30,7 +30,7 @@ sha2 = "^0.11"
 time = "^0.3"
 tokio = { version = "^1", features = ["macros", "rt-multi-thread"] }
 tower-cookies = "^0.11"
-uuid = { version = "^1.22", features = ["serde", "v4"] }
+uuid = { version = "^1.23", features = ["serde", "v4"] }
 url = { version = "^2.5", features = ["serde"] }
 
 [profile.release_extra]
