@@ -9,9 +9,9 @@ use jsonwebkey::RsaPrivate;
 use rand::SeedableRng as _;
 use rsa::traits::PrivateKeyParts as _;
 use rsa::traits::PublicKeyParts as _;
-use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use std::sync::Arc;
 
 pub(crate) type Result<T> = core::result::Result<T, AnyhowBridge>;

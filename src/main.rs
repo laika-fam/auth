@@ -1,9 +1,9 @@
 //! who up authorizing they accounts
 
+mod db;
 mod endpoints;
 mod model;
 mod serde;
-mod db;
 
 pub(crate) use model::Result;
 
@@ -19,16 +19,16 @@ use crate::model::BackingOauthState;
 use crate::model::Jwks;
 use crate::model::Session;
 use crate::model::ToFromAws as _;
+use axum::Router;
 use axum::routing::get;
 use axum::routing::post;
-use axum::Router;
 use core::fmt::Debug;
 use core::net::Ipv6Addr;
 use core::ops::Deref;
 use core::str::FromStr;
-use diesel_async::pooled_connection::deadpool::Pool;
-use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use diesel_async::AsyncPgConnection;
+use diesel_async::pooled_connection::AsyncDieselConnectionManager;
+use diesel_async::pooled_connection::deadpool::Pool;
 use std::sync::Arc;
 
 pub(crate) const EXTREMELY_LOUD_INCORRECT_BUZZER: &str = "[\u{1d404}\u{1d417}\u{1d413}\u{1d411}\u{1d404}\u{1d40c}\u{1d404}\u{1d40b}\u{1d418} \u{1d40b}\u{1d40e}\u{1d414}\u{1d403} \u{1d408}\u{1d40d}\u{1d402}\u{1d40e}\u{1d411}\u{1d411}\u{1d404}\u{1d402}\u{1d413} \u{1d401}\u{1d414}\u{1d419}\u{1d419}\u{1d404}\u{1d411}]";
