@@ -16,7 +16,7 @@ use axum::response::IntoResponse as _;
 use base64::Engine as _;
 use chrono::Utc;
 use core::ops::Add as _;
-use diesel::BoolExpressionMethods;
+use diesel::BoolExpressionMethods as _;
 use diesel::ExpressionMethods as _;
 use diesel::QueryDsl as _;
 use diesel::SelectableHelper as _;
