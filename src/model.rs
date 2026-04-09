@@ -3,7 +3,6 @@ use axum::http::StatusCode;
 use chrono::Utc;
 use diesel::HasQuery;
 use diesel::Insertable;
-use diesel::Selectable;
 use jsonwebkey::KeyUse;
 use jsonwebkey::RsaPrivate;
 use rand::SeedableRng as _;

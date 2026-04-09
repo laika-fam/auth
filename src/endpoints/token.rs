@@ -113,7 +113,6 @@ pub(crate) async fn post(
             let auth_code = Arc::unwrap_or_clone(auth_code);
 
             let access_token_id = uuid::Uuid::new_v4();
-            let refresh_token_id = uuid::Uuid::new_v4();
 
             let issued_at = Utc::now();
 
@@ -205,7 +204,7 @@ pub(crate) async fn post(
                     .context("refresh token details")?
             };
 
-            if client_id.is_some_and(|c| refresh_token_stored.client_id != &*c) {
+            if client_id.is_some_and(|c| refresh_token_stored.client_id != *c) {
                 return Err(anyhow!("no")).with_status_code(StatusCode::BAD_REQUEST);
             }
 
@@ -234,7 +233,7 @@ pub(crate) async fn post(
                     .post("https://oauth2.googleapis.com/token")
                     .json(&RefreshGrantBody {
                         grant_type: "refresh_token",
-                        refresh_token: &google_refresh_token,
+                        refresh_token: google_refresh_token,
                         client_id: &state.google_client_id,
                         client_secret: &state.google_client_secret,
                     })
