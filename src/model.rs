@@ -286,5 +286,4 @@ pub(crate) struct RefreshTokenSelect {
     pub client_id: String,
     pub scope: String,
     pub google_refresh_token: Option<String>,
-    pub expires: chrono::DateTime<Utc>,
 }

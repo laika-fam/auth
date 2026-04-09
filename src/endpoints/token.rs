@@ -1,4 +1,3 @@
-
 use crate::AppState;
 use crate::db::schema::refresh_token;
 use crate::model::AccessToken;
@@ -17,6 +16,7 @@ use axum::response::IntoResponse as _;
 use base64::Engine as _;
 use chrono::Utc;
 use core::ops::Add as _;
+use diesel::BoolExpressionMethods;
 use diesel::ExpressionMethods as _;
 use diesel::QueryDsl as _;
 use diesel::SelectableHelper as _;
@@ -198,7 +198,11 @@ pub(crate) async fn post(
                 let mut db = state.db_pool.get().await.context("acquire db")?;
                 refresh_token::table
                     .select(RefreshTokenSelect::as_select())
-                    .filter(refresh_token::id.eq(refresh_token))
+                    .filter(
+                        refresh_token::id
+                            .eq(refresh_token)
+                            .and(refresh_token::expires.ge(diesel::dsl::now)),
+                    )
                     .first::<RefreshTokenSelect>(&mut db)
                     .await
                     .context("refresh token details")?
