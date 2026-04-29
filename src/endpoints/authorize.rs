@@ -28,6 +28,12 @@ static CLIENTS: phf::Map<&'static str, ClientDef> = phf::phf_map! {
     "https://open.spotify.com/track/1uB20TujpjHQZpFRxsbnI7" => ClientDef {
         redirect_uris: &["https://paste.laggy.computer/api/auth/oauth2/callback/laggy.computer"],
     },
+    "https://open.spotify.com/track/2xtP8RNbo2BEMzLX7tK7aq" => ClientDef {
+        redirect_uris: &[
+            "http://localhost:4126/auth/cb",
+            "https://files.laggy.computer/auth/cb",
+        ],
+    },
 };
 
 fn allowed(client_id: &str, redirect_url: &str) -> bool {
