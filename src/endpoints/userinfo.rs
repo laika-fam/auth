@@ -20,7 +20,7 @@ pub(crate) async fn get(
         return StatusCode::FORBIDDEN.into_response();
     }
 
-    let Ok(bearer_uuid) = bearer.parse::<uuid::Uuid>() else {
+    let Ok(bearer_uuid) = bearer.parse::<uuid::fmt::Simple>().map(uuid::fmt::Simple::into_uuid) else {
         return StatusCode::FORBIDDEN.into_response();
     };
 
