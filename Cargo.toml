@@ -15,8 +15,8 @@ axum-extra = { version = "^0.12", features = ["typed-header"] }
 axum-macros = "^0.5"
 base64 = "^0.22"
 chrono = { version = "^0.4", features = ["serde"] }
-diesel = { version = "^2.3", features = ["postgres", "chrono", "serde_json", "uuid"] }
-diesel-async = { version = "^0.8", features = ["deadpool", "postgres"] }
+diesel = { version = "^2.3.9", features = ["postgres", "chrono", "serde_json", "uuid"] }
+diesel-async = { version = "0.9.0", features = ["deadpool", "postgres"] }
 jsonwebkey = { version = "^0.4", features = ["jwt-convert"] }
 jsonwebtoken = "^10.3"
 moka = { version = "^0.12", features = ["future"] }
