@@ -7,7 +7,7 @@ rust-version = "1.96"
 publish = false
 
 [dependencies]
-anyhow = "^1"
+anyhow = "^1.0.103"
 aws-config = "^1.8"
 aws-sdk-s3 = "^1.129"
 axum = { version = "^0.8", features = ["json", "query"] }
