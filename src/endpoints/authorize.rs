@@ -36,7 +36,7 @@ static CLIENTS: phf::Map<&'static str, ClientDef> = phf::phf_map! {
     },
     "https://open.spotify.com/track/1VLZs2A4GUrd8jCZJRiTzb" => ClientDef {
         redirect_uris: &[
-            "http://localhost:8787/login/cb",
+            "http://localhost:8787/api/login/cb",
             "https://beetroot.farm/api/login/cb",
         ],
     }
